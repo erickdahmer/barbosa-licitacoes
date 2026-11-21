@@ -94,7 +94,7 @@
                                     <div class="mb-2">Datas (Escl. / Disputa)</div>
                                     <div class="flex items-center gap-1">
                                         <input type="date" v-model="filtros.data" title="Filtrar por data de esclarecimento ou disputa"
-                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
+                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case" @click="$event.target.showPicker && $event.target.showPicker()">
                                     </div>
                                 </th>
                                 <th class="p-3.5 align-top">
@@ -307,19 +307,19 @@
                         <div class="grid grid-cols-2 gap-3 text-xs">
                             <div>
                                 <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Federal</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_federal" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1">
+                                <input type="date" v-model="novoCliente.validade_cnd_federal" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
                             </div>
                             <div>
                                 <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Estadual</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_estadual" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1">
+                                <input type="date" v-model="novoCliente.validade_cnd_estadual" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
                             </div>
                             <div>
                                 <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> FGTS (CRF)</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_fgts" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1">
+                                <input type="date" v-model="novoCliente.validade_cnd_fgts" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
                             </div>
                             <div>
                                 <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Trabalhista</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_trabalhista" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1">
+                                <input type="date" v-model="novoCliente.validade_cnd_trabalhista" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
                             </div>
                         </div>
                     </div>
@@ -358,14 +358,14 @@
                                 <i class="fa-regular fa-calendar-check"></i> Data e Hora de Esclarecimento
                             </label>
                             <input type="datetime-local" v-model="novaLicitacao.data_esclarecimento"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs">
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
                         </div>
                         <div>
                             <label class="text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
                                 <i class="fa-regular fa-calendar-days"></i> Data e Hora da Disputa
                             </label>
                             <input type="datetime-local" v-model="novaLicitacao.data_disputa"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs">
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
                         </div>
                     </div>
 
@@ -404,12 +404,12 @@
                         <div>
                             <label class="text-xs text-amber-300">Data e Hora de Esclarecimento</label>
                             <input type="datetime-local" v-model="licitacaoEditando.data_esclarecimento"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs">
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
                         </div>
                         <div>
                             <label class="text-xs text-emerald-400">Data e Hora da Disputa</label>
                             <input type="datetime-local" v-model="licitacaoEditando.data_disputa"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs">
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
