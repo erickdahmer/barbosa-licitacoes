@@ -3,6 +3,8 @@ import sqlite3
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
+app.jinja_options['variable_start_string'] = '[['
+app.jinja_options['variable_end_string'] = ']]'
 DB_PATH = os.path.join(os.path.dirname(__file__), 'barbosa_licitacoes.db')
 
 
