@@ -1,8 +1,19 @@
 import os
 import sqlite3
 from flask import Flask, render_template, request, jsonify
-import psycopg2
-from psycopg2.extras import RealDictCursor
+
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+    HAS_PSYCOPG3 = True
+except ImportError:
+    psycopg = None
+    dict_row = None
+    HAS_PSYCOPG3 = False
+
+if not HAS_PSYCOPG3:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 app.jinja_options['variable_start_string'] = '[['
@@ -17,9 +28,10 @@ def is_postgres():
 
 
 class DBConnection:
-    def __init__(self, raw_conn, use_pg):
+    def __init__(self, raw_conn, use_pg, use_pg3=False):
         self.raw = raw_conn
         self.use_pg = use_pg
+        self.use_pg3 = use_pg3
 
     def _sql(self, query):
         return query.replace('?', '%s') if self.use_pg else query
@@ -32,6 +44,9 @@ class DBConnection:
     def commit(self):
         self.raw.commit()
 
+    def rollback(self):
+        self.raw.rollback()
+
     def close(self):
         self.raw.close()
 
@@ -39,12 +54,15 @@ class DBConnection:
 def get_db_connection():
     if is_postgres():
         url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        if HAS_PSYCOPG3:
+            conn = psycopg.connect(url, row_factory=dict_row)
+            return DBConnection(conn, use_pg=True, use_pg3=True)
         conn = psycopg2.connect(url, cursor_factory=RealDictCursor)
-        return DBConnection(conn, use_pg=True)
+        return DBConnection(conn, use_pg=True, use_pg3=False)
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    return DBConnection(conn, use_pg=False)
+    return DBConnection(conn, use_pg=False, use_pg3=False)
 
 
 def _garantir_colunas_licitacoes(conn):
@@ -58,7 +76,7 @@ def _garantir_colunas_licitacoes(conn):
             conn.execute(f"ALTER TABLE licitacoes ADD COLUMN {col} {tipo}")
             conn.commit()
         except Exception:
-            conn.raw.rollback()
+            conn.rollback()
 
 
 def init_db():
