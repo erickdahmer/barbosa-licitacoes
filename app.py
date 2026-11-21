@@ -1,13 +1,8 @@
 import os
 import sqlite3
 from flask import Flask, render_template, request, jsonify
-
-try:
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-except ImportError:
-    psycopg2 = None
-    RealDictCursor = None
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 app.jinja_options['variable_start_string'] = '[['
@@ -43,8 +38,6 @@ class DBConnection:
 
 def get_db_connection():
     if is_postgres():
-        if psycopg2 is None:
-            raise RuntimeError("psycopg2-binary não está instalado.")
         url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
         conn = psycopg2.connect(url, cursor_factory=RealDictCursor)
         return DBConnection(conn, use_pg=True)
