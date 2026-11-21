@@ -1,864 +1,337 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Barbosa Licitações | Assessoria e Gestão em Licitações Públicas</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
-    <div id="app" class="flex flex-col min-h-screen">
-        
-        <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <label title="Clique para carregar ou trocar a logo" class="h-16 px-3 rounded-xl bg-white border border-emerald-500/40 flex items-center justify-center overflow-hidden shadow-md cursor-pointer hover:border-emerald-400 transition">
-                    <img :src="logoSrc" @error="onLogoError" alt="Barbosa Licitações" class="h-14 w-auto object-contain">
-                    <input type="file" accept="image/*" @change="carregarLogoLocal" class="hidden">
-                </label>
-                <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-white">Barbosa Licitações</h1>
-                    <p class="text-xs text-emerald-400 font-medium">Assessoria e Gestão em Licitações Públicas</p>
-                </div>
-            </div>
+import os
+import sqlite3
+from flask import Flask, render_template, request, jsonify
 
-            <nav class="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-                <button @click="abaAtiva = 'licitacoes'" 
-                    :class="abaAtiva === 'licitacoes' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                    class="px-4 py-2 rounded-md text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-gavel"></i> Pregões & Editais
-                </button>
-                <button @click="abaAtiva = 'clientes'" 
-                    :class="abaAtiva === 'clientes' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                    class="px-4 py-2 rounded-md text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-building"></i> Clientes & CNDs
-                </button>
-                <button @click="abaAtiva = 'calculadora'" 
-                    :class="abaAtiva === 'calculadora' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                    class="px-4 py-2 rounded-md text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-calculator"></i> Calculadora de Lance
-                </button>
-            </nav>
-        </header>
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+except ImportError:
+    psycopg2 = None
+    RealDictCursor = None
 
-        <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+app = Flask(__name__)
+app.jinja_options['variable_start_string'] = '[['
+app.jinja_options['variable_end_string'] = ']]'
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                    <div class="text-slate-400 text-xs uppercase font-semibold">Editais Ativos</div>
-                    <div class="text-3xl font-bold text-white mt-1">{{ licitacoesAtivas }}</div>
-                    <div class="text-xs text-slate-500 mt-1">Em análise ou disputa</div>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                    <div class="text-slate-400 text-xs uppercase font-semibold">Total Arrematado</div>
-                    <div class="text-2xl font-bold text-emerald-400 mt-1">{{ formatarMoeda(totalArrematado) }}</div>
-                    <div class="text-xs text-slate-500 mt-1">Contratos homologados/ganhos</div>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                    <div class="text-slate-400 text-xs uppercase font-semibold">Clientes Assessorados</div>
-                    <div class="text-3xl font-bold text-sky-400 mt-1">{{ clientes.length }}</div>
-                    <div class="text-xs text-slate-500 mt-1">Empresas cadastradas</div>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                    <div class="text-slate-400 text-xs uppercase font-semibold">Alertas de CND</div>
-                    <div class="text-3xl font-bold mt-1" :class="alertasCnd > 0 ? 'text-rose-500' : 'text-emerald-400'">
-                        {{ alertasCnd }}
-                    </div>
-                    <div class="text-xs text-slate-500 mt-1">Vencidas ou vencendo em 10 dias</div>
-                </div>
-            </div>
+DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
+DB_PATH = os.path.join(os.path.dirname(__file__), 'barbosa_licitacoes.db')
 
-            <section v-if="abaAtiva === 'licitacoes'" class="space-y-4">
-                <div class="flex flex-wrap justify-between items-center gap-4">
-                    <div class="flex flex-wrap items-center gap-3">
-                        <h2 class="text-lg font-bold text-white">Controle de Pregões e Editais</h2>
-                        <span class="text-xs bg-slate-900 border border-slate-800 text-slate-300 px-2.5 py-1 rounded-full">
-                            Exibindo {{ licitacoesFiltradas.length }} de {{ licitacoes.length }}
-                        </span>
-                        <button v-if="temFiltroAtivo" @click="limparFiltrosColunas"
-                            class="text-xs bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-filter-circle-xmark"></i> Limpar Filtros
-                        </button>
-                    </div>
-                    <button @click="abrirNovoEdital" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
-                        <i class="fa-solid fa-plus"></i> Novo Edital
-                    </button>
-                </div>
 
-                <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[1150px]">
-                        <thead>
-                            <tr class="border-b border-slate-800 text-xs uppercase text-slate-400 bg-slate-900/70">
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Datas (Escl. / Disputa)</div>
-                                    <div class="flex items-center gap-1">
-                                        <input type="date" v-model="filtros.data" title="Filtrar por data de esclarecimento ou disputa"
-                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case" @click="$event.target.showPicker && $event.target.showPicker()">
-                                    </div>
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Cliente</div>
-                                    <input type="text" v-model="filtros.cliente" placeholder="Filtrar cliente..."
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Órgão / Edital / Link</div>
-                                    <input type="text" v-model="filtros.edital" placeholder="Órgão, edital, portal..."
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Objeto</div>
-                                    <input type="text" v-model="filtros.objeto" placeholder="Filtrar objeto..."
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Valores (Ref / Est / Ganho)</div>
-                                    <input type="number" step="0.01" v-model.number="filtros.valorMin" placeholder="Valor mín. (R$)..."
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Status</div>
-                                    <select v-model="filtros.status"
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                        <option value="">Todos</option>
-                                        <option v-for="st in statusOptions" :key="st" :value="st">{{ st }}</option>
-                                    </select>
-                                </th>
-                                <th class="p-3.5 align-top text-right">
-                                    <div class="mb-2">Ações</div>
-                                    <span class="text-[10px] text-slate-500 normal-case">Editar / Excluir</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-800 text-sm">
-                            <tr v-if="licitacoesFiltradas.length === 0">
-                                <td colspan="7" class="p-8 text-center text-slate-500">
-                                    Nenhuma licitação encontrada para os critérios atuais.
-                                </td>
-                            </tr>
-                            <tr v-for="lic in licitacoesFiltradas" :key="lic.id" class="hover:bg-slate-800/40 transition align-top">
-                                <td class="p-3.5 whitespace-nowrap font-mono text-xs space-y-1.5">
-                                    <div>
-                                        <span class="text-[10px] uppercase text-amber-400/90 block">Esclarecimento</span>
-                                        <span class="text-amber-300">{{ formatarDataHora(lic.data_esclarecimento) }}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-[10px] uppercase text-emerald-400/90 block">Disputa</span>
-                                        <span class="text-emerald-400 font-semibold">{{ formatarDataHora(lic.data_disputa) }}</span>
-                                    </div>
-                                </td>
-                                <td class="p-3.5 font-medium text-white">
-                                    {{ nomeCliente(lic.cliente_id) }}
-                                </td>
-                                <td class="p-3.5 space-y-1">
-                                    <div class="font-semibold text-slate-200">{{ lic.orgao }}</div>
-                                    <div class="text-xs text-slate-400">Edital: {{ lic.numero_edital }} • {{ lic.portal || 'Portal N/I' }}</div>
-                                    <div v-if="lic.link_edital" class="pt-0.5">
-                                        <a :href="normalizarUrl(lic.link_edital)" target="_blank" rel="noopener noreferrer"
-                                            class="inline-flex items-center gap-1.5 text-xs font-medium text-sky-400 hover:text-sky-300 underline decoration-sky-500/40">
-                                            <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i> Abrir Edital
-                                        </a>
-                                    </div>
-                                </td>
-                                <td class="p-3.5 max-w-xs text-slate-300 text-xs leading-relaxed">
-                                    <div class="line-clamp-3" :title="lic.objeto">{{ lic.objeto }}</div>
-                                </td>
-                                <td class="p-3.5 whitespace-nowrap text-xs space-y-0.5">
-                                    <div class="text-sky-300">Ref: <span class="font-semibold">{{ formatarMoeda(lic.valor_referencia) }}</span></div>
-                                    <div class="text-slate-400">Est: {{ formatarMoeda(lic.valor_estimado) }}</div>
-                                    <div v-if="lic.valor_arrematado > 0" class="text-emerald-400 font-semibold">
-                                        Ganho: {{ formatarMoeda(lic.valor_arrematado) }}
-                                    </div>
-                                </td>
-                                <td class="p-3.5">
-                                    <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border text-xs font-semibold shadow-sm"
-                                        :class="estiloBadgeStatus(lic.status)">
-                                        <span class="w-2 h-2 rounded-full" :class="pontoStatus(lic.status)"></span>
-                                        <select v-model="lic.status" @change="atualizarStatusLicitacao(lic)"
-                                            class="bg-transparent focus:outline-none cursor-pointer pr-1 font-semibold">
-                                            <option v-for="st in statusOptions" :key="st" :value="st" class="bg-slate-900 text-slate-100">
-                                                {{ st }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                </td>
-                                <td class="p-3.5 text-right whitespace-nowrap space-x-2">
-                                    <button @click="abrirEdicaoValor(lic)" title="Editar Edital / Valor Ganho / Obs" class="text-slate-400 hover:text-emerald-400 p-1.5 rounded hover:bg-slate-800 transition">
-                                        <i class="fa-solid fa-pen-to-square"></i>
-                                    </button>
-                                    <button @click="excluirLicitacao(lic.id)" title="Excluir" class="text-slate-400 hover:text-rose-500 p-1.5 rounded hover:bg-slate-800 transition">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+def is_postgres():
+    return bool(DATABASE_URL)
 
-            <section v-if="abaAtiva === 'clientes'" class="space-y-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-lg font-bold text-white">Empresas Assessoradas & Validade de Certidões (CNDs)</h2>
-                    <button @click="modalCliente = true" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
-                        <i class="fa-solid fa-plus"></i> Novo Cliente
-                    </button>
-                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div v-if="clientes.length === 0" class="col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-500">
-                        Nenhum cliente cadastrado. Cadastre as empresas que a Barbosa Licitações assessora.
-                    </div>
-                    <div v-for="cli in clientes" :key="cli.id" class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="font-bold text-white text-base">{{ cli.razao_social }}</h3>
-                                <p class="text-xs text-slate-400 font-mono">CNPJ: {{ cli.cnpj }} | CNAE: {{ cli.cnae_principal || 'N/I' }}</p>
-                                <p class="text-xs text-slate-400 mt-0.5"><i class="fa-brands fa-whatsapp text-emerald-400"></i> {{ cli.contato || 'Sem contato' }}</p>
-                            </div>
-                            <button @click="excluirCliente(cli.id)" class="text-slate-500 hover:text-rose-500 text-sm">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
+class DBConnection:
+    def __init__(self, raw_conn, use_pg):
+        self.raw = raw_conn
+        self.use_pg = use_pg
 
-                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
-                            <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
-                                <span class="text-slate-400">CND Federal:</span>
-                                <span :class="statusValidade(cli.validade_cnd_federal).classe" class="font-semibold">
-                                    {{ statusValidade(cli.validade_cnd_federal).texto }}
-                                </span>
-                            </div>
-                            <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
-                                <span class="text-slate-400">CND Estadual:</span>
-                                <span :class="statusValidade(cli.validade_cnd_estadual).classe" class="font-semibold">
-                                    {{ statusValidade(cli.validade_cnd_estadual).texto }}
-                                </span>
-                            </div>
-                            <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
-                                <span class="text-slate-400">FGTS (CRF):</span>
-                                <span :class="statusValidade(cli.validade_cnd_fgts).classe" class="font-semibold">
-                                    {{ statusValidade(cli.validade_cnd_fgts).texto }}
-                                </span>
-                            </div>
-                            <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
-                                <span class="text-slate-400">Trabalhista:</span>
-                                <span :class="statusValidade(cli.validade_cnd_trabalhista).classe" class="font-semibold">
-                                    {{ statusValidade(cli.validade_cnd_trabalhista).texto }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+    def _sql(self, query):
+        return query.replace('?', '%s') if self.use_pg else query
 
-            <section v-if="abaAtiva === 'calculadora'" class="max-w-2xl mx-auto bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
-                <div>
-                    <h2 class="text-lg font-bold text-white">Calculadora Rápida de Lance Mínimo</h2>
-                    <p class="text-xs text-slate-400">Use durante o pregão ao vivo para saber o piso exato sem dar prejuízo ao cliente.</p>
-                </div>
+    def execute(self, query, params=()):
+        cur = self.raw.cursor()
+        cur.execute(self._sql(query), params)
+        return cur
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <label class="block text-slate-400 mb-1">Custo do Produto/Serviço (R$)</label>
-                        <input type="number" v-model.number="calc.custo" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
-                    </div>
-                    <div>
-                        <label class="block text-slate-400 mb-1">Frete / Logística (R$)</label>
-                        <input type="number" v-model.number="calc.frete" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
-                    </div>
-                    <div>
-                        <label class="block text-slate-400 mb-1">Impostos (%)</label>
-                        <input type="number" v-model.number="calc.impostos" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
-                    </div>
-                    <div>
-                        <label class="block text-slate-400 mb-1">Margem de Lucro Mínima (%)</label>
-                        <input type="number" v-model.number="calc.margem" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
-                    </div>
-                </div>
+    def commit(self):
+        self.raw.commit()
 
-                <div class="bg-slate-950 border border-emerald-500/40 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <div>
-                        <span class="text-xs uppercase text-slate-400 font-semibold">Lance Mínimo Recomendado (Piso)</span>
-                        <div class="text-3xl font-bold text-emerald-400 mt-1">{{ formatarMoeda(lanceMinimoCalculado) }}</div>
-                    </div>
-                    <div class="text-right text-xs text-slate-400">
-                        <div>Custo Direto: {{ formatarMoeda(calc.custo + calc.frete) }}</div>
-                        <div>Deduções Totais: {{ (calc.impostos + calc.margem).toFixed(1) }}%</div>
-                    </div>
-                </div>
-            </section>
+    def close(self):
+        self.raw.close()
 
-        </main>
 
-        <!-- Modal Cadastro Cliente -->
-        <div v-if="modalCliente" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
-            <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 space-y-4">
-                <h3 class="text-lg font-bold text-white">Cadastrar Empresa Cliente</h3>
-                <div class="space-y-3 text-sm">
-                    <input v-model="novoCliente.razao_social" placeholder="Razão Social / Nome Fantasia *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    <div class="grid grid-cols-2 gap-3">
-                        <input v-model="novoCliente.cnpj" placeholder="CNPJ *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                        <input v-model="novoCliente.cnae_principal" placeholder="CNAE / Ramo" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    </div>
-                    <input v-model="novoCliente.contato" placeholder="Responsável / WhatsApp" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    
-                    <div class="pt-2 border-t border-slate-800">
-                        <p class="text-xs text-slate-400 mb-2 font-semibold">Validade das Certidões (CNDs — Calendário):</p>
-                        <div class="grid grid-cols-2 gap-3 text-xs">
-                            <div>
-                                <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Federal</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_federal" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
-                            </div>
-                            <div>
-                                <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Estadual</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_estadual" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
-                            </div>
-                            <div>
-                                <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> FGTS (CRF)</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_fgts" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
-                            </div>
-                            <div>
-                                <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Trabalhista</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_trabalhista" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-2">
-                    <button @click="modalCliente = false" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-                    <button @click="salvarCliente" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Salvar Cliente</button>
-                </div>
-            </div>
-        </div>
+def get_db_connection():
+    if is_postgres():
+        if psycopg2 is None:
+            raise RuntimeError("psycopg2-binary não está instalado.")
+        url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        conn = psycopg2.connect(url, cursor_factory=RealDictCursor)
+        return DBConnection(conn, use_pg=True)
 
-        <!-- Modal Novo Edital -->
-        <div v-if="modalLicitacao" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 space-y-4 my-8">
-                <h3 class="text-lg font-bold text-white">Cadastrar Nova Licitação / Pregão</h3>
-                <div class="space-y-3 text-sm">
-                    <select v-model="novaLicitacao.cliente_id" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                        <option :value="null">Selecione o Cliente Assessorado *</option>
-                        <option v-for="c in clientes" :key="c.id" :value="c.id">{{ c.razao_social }}</option>
-                    </select>
-                    <input v-model="novaLicitacao.orgao" placeholder="Órgão Licitante (Ex: Pref. Municipal de Guaíba) *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input v-model="novaLicitacao.numero_edital" placeholder="Nº Edital (Ex: PE 045/2026) *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                        <input v-model="novaLicitacao.portal" placeholder="Portal (ComprasNet, BLL, Banrisul...)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-link text-sky-400"></i> Link do Edital (Site / Portal)</label>
-                        <input type="url" v-model="novaLicitacao.link_edital" placeholder="https://www.gov.br/compras/... ou portal do órgão"
-                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
-                    </div>
-                    <textarea v-model="novaLicitacao.objeto" rows="2" placeholder="Objeto resumido da licitação *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2"></textarea>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                        <div>
-                            <label class="text-xs text-amber-300 flex items-center gap-1.5 font-medium">
-                                <i class="fa-regular fa-calendar-check"></i> Data e Hora de Esclarecimento
-                            </label>
-                            <input type="datetime-local" v-model="novaLicitacao.data_esclarecimento"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
-                        </div>
-                        <div>
-                            <label class="text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
-                                <i class="fa-regular fa-calendar-days"></i> Data e Hora da Disputa
-                            </label>
-                            <input type="datetime-local" v-model="novaLicitacao.data_disputa"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
-                        </div>
-                    </div>
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return DBConnection(conn, use_pg=False)
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs text-sky-300 font-medium">Valor de Referência do Edital (R$)</label>
-                            <input type="number" step="0.01" v-model="novaLicitacao.valor_referencia"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
-                        </div>
-                        <div>
-                            <label class="text-xs text-slate-400">Valor Estimado / Interno (R$)</label>
-                            <input type="number" step="0.01" v-model="novaLicitacao.valor_estimado"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-2">
-                    <button @click="modalLicitacao = false" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-                    <button @click="salvarLicitacao" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Cadastrar Edital</button>
-                </div>
-            </div>
-        </div>
 
-        <!-- Modal Editar / Resultado do Pregão -->
-        <div v-if="licitacaoEditando" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 space-y-4 my-8">
-                <h3 class="text-lg font-bold text-white">Editar Edital & Resultado do Pregão</h3>
-                <p class="text-xs text-slate-400">{{ licitacaoEditando.orgao }} — {{ licitacaoEditando.numero_edital }}</p>
-                <div class="space-y-3 text-sm">
-                    <div>
-                        <label class="text-xs text-slate-400">Link do Edital</label>
-                        <input type="url" v-model="licitacaoEditando.link_edital" placeholder="https://..."
-                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs text-amber-300">Data e Hora de Esclarecimento</label>
-                            <input type="datetime-local" v-model="licitacaoEditando.data_esclarecimento"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
-                        </div>
-                        <div>
-                            <label class="text-xs text-emerald-400">Data e Hora da Disputa</label>
-                            <input type="datetime-local" v-model="licitacaoEditando.data_disputa"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                            <label class="text-xs text-sky-300">Valor Referência (R$)</label>
-                            <input type="number" step="0.01" v-model="licitacaoEditando.valor_referencia"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
-                        </div>
-                        <div>
-                            <label class="text-xs text-slate-400">Valor Estimado (R$)</label>
-                            <input type="number" step="0.01" v-model="licitacaoEditando.valor_estimado"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
-                        </div>
-                        <div>
-                            <label class="text-xs text-emerald-400">Valor Arrematado (R$)</label>
-                            <input type="number" step="0.01" v-model="licitacaoEditando.valor_arrematado"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400">Observações (Lances, Recursos, Prazo de Entrega)</label>
-                        <textarea v-model="licitacaoEditando.observacoes" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1"></textarea>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-2">
-                    <button @click="licitacaoEditando = null" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-                    <button @click="salvarEdicaoValor" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Salvar Alterações</button>
-                </div>
-            </div>
-        </div>
+def _garantir_colunas_licitacoes(conn):
+    novas_colunas = [
+        ("link_edital", "TEXT DEFAULT ''"),
+        ("data_esclarecimento", "TEXT DEFAULT ''"),
+        ("valor_referencia", "DOUBLE PRECISION DEFAULT 0" if is_postgres() else "REAL DEFAULT 0"),
+    ]
+    for col, tipo in novas_colunas:
+        try:
+            conn.execute(f"ALTER TABLE licitacoes ADD COLUMN {col} {tipo}")
+            conn.commit()
+        except Exception:
+            conn.raw.rollback()
 
-    </div>
 
-    <script>
-        const { createApp } = Vue;
-        const STORAGE_KEY = 'barbosa_licitacoes_v1';
-        const LOGO_STORAGE_KEY = 'barbosa_licitacoes_logo_v1';
-        const FALLBACK_SVG = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="64" viewBox="0 0 220 64"><rect width="220" height="64" rx="8" fill="#ffffff"/><text x="110" y="28" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="bold" fill="#064e3b">BARBOSA</text><text x="110" y="48" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#059669">LICITAÇÕES</text></svg>');
+def init_db():
+    conn = get_db_connection()
+    try:
+        if is_postgres():
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS clientes (
+                    id BIGINT PRIMARY KEY,
+                    razao_social TEXT NOT NULL,
+                    cnpj TEXT NOT NULL,
+                    cnae_principal TEXT,
+                    contato TEXT,
+                    validade_cnd_federal TEXT,
+                    validade_cnd_estadual TEXT,
+                    validade_cnd_fgts TEXT,
+                    validade_cnd_trabalhista TEXT
+                )
+            ''')
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS licitacoes (
+                    id BIGINT PRIMARY KEY,
+                    cliente_id BIGINT REFERENCES clientes (id) ON DELETE SET NULL,
+                    orgao TEXT NOT NULL,
+                    numero_edital TEXT NOT NULL,
+                    objeto TEXT NOT NULL,
+                    portal TEXT,
+                    link_edital TEXT DEFAULT '',
+                    data_esclarecimento TEXT DEFAULT '',
+                    data_disputa TEXT,
+                    valor_referencia DOUBLE PRECISION DEFAULT 0,
+                    valor_estimado DOUBLE PRECISION DEFAULT 0,
+                    valor_arrematado DOUBLE PRECISION DEFAULT 0,
+                    status TEXT DEFAULT 'Analisando Edital',
+                    observacoes TEXT
+                )
+            ''')
+        else:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS clientes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    razao_social TEXT NOT NULL,
+                    cnpj TEXT NOT NULL,
+                    cnae_principal TEXT,
+                    contato TEXT,
+                    validade_cnd_federal TEXT,
+                    validade_cnd_estadual TEXT,
+                    validade_cnd_fgts TEXT,
+                    validade_cnd_trabalhista TEXT
+                )
+            ''')
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS licitacoes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cliente_id INTEGER,
+                    orgao TEXT NOT NULL,
+                    numero_edital TEXT NOT NULL,
+                    objeto TEXT NOT NULL,
+                    portal TEXT,
+                    link_edital TEXT DEFAULT '',
+                    data_esclarecimento TEXT DEFAULT '',
+                    data_disputa TEXT,
+                    valor_referencia REAL DEFAULT 0,
+                    valor_estimado REAL DEFAULT 0,
+                    valor_arrematado REAL DEFAULT 0,
+                    status TEXT DEFAULT 'Analisando Edital',
+                    observacoes TEXT,
+                    FOREIGN KEY (cliente_id) REFERENCES clientes (id)
+                )
+            ''')
+        conn.commit()
+        _garantir_colunas_licitacoes(conn)
+    finally:
+        conn.close()
 
-        createApp({
-            data() {
-                return {
-                    logoSrc: '/static/img/logo.jpeg',
-                    abaAtiva: 'licitacoes',
-                    clientes: [],
-                    licitacoes: [],
-                    filtros: {
-                        data: '',
-                        cliente: '',
-                        edital: '',
-                        objeto: '',
-                        valorMin: null,
-                        status: ''
-                    },
-                    statusOptions: [
-                        'Analisando Edital',
-                        'Documentação OK',
-                        'Proposta Cadastrada',
-                        'Em Disputa',
-                        'Habilitação / Recurso',
-                        'Ganho / Homologado',
-                        'Perdido / Cancelado'
-                    ],
-                    modalCliente: false,
-                    modalLicitacao: false,
-                    licitacaoEditando: null,
-                    novoCliente: {
-                        razao_social: '', cnpj: '', cnae_principal: '', contato: '',
-                        validade_cnd_federal: '', validade_cnd_estadual: '',
-                        validade_cnd_fgts: '', validade_cnd_trabalhista: ''
-                    },
-                    novaLicitacao: this.estadoInicialLicitacao(),
-                    calc: {
-                        custo: 1000,
-                        frete: 150,
-                        impostos: 12,
-                        margem: 15
-                    }
-                }
-            },
-            computed: {
-                temFiltroAtivo() {
-                    return Boolean(
-                        this.filtros.data ||
-                        (this.filtros.cliente && this.filtros.cliente.trim()) ||
-                        (this.filtros.edital && this.filtros.edital.trim()) ||
-                        (this.filtros.objeto && this.filtros.objeto.trim()) ||
-                        (this.filtros.valorMin !== null && this.filtros.valorMin !== '' && !isNaN(this.filtros.valorMin)) ||
-                        this.filtros.status
-                    );
-                },
-                licitacoesFiltradas() {
-                    const lista = [...this.licitacoes].sort((a, b) => (a.data_disputa || '').localeCompare(b.data_disputa || ''));
 
-                    return lista.filter(lic => {
-                        if (this.filtros.data) {
-                            const escData = (lic.data_esclarecimento || '').slice(0, 10);
-                            const dispData = (lic.data_disputa || '').slice(0, 10);
-                            if (escData !== this.filtros.data && dispData !== this.filtros.data) {
-                                return false;
-                            }
-                        }
+init_db()
 
-                        if (this.filtros.cliente && this.filtros.cliente.trim()) {
-                            const nomeCli = this.nomeCliente(lic.cliente_id).toLowerCase();
-                            if (!nomeCli.includes(this.filtros.cliente.trim().toLowerCase())) {
-                                return false;
-                            }
-                        }
 
-                        if (this.filtros.edital && this.filtros.edital.trim()) {
-                            const termo = this.filtros.edital.trim().toLowerCase();
-                            const alvo = `${lic.orgao || ''} ${lic.numero_edital || ''} ${lic.portal || ''} ${lic.link_edital || ''}`.toLowerCase();
-                            if (!alvo.includes(termo)) {
-                                return false;
-                            }
-                        }
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-                        if (this.filtros.objeto && this.filtros.objeto.trim()) {
-                            if (!(lic.objeto || '').toLowerCase().includes(this.filtros.objeto.trim().toLowerCase())) {
-                                return false;
-                            }
-                        }
 
-                        if (this.filtros.valorMin !== null && this.filtros.valorMin !== '' && !isNaN(this.filtros.valorMin)) {
-                            const min = parseFloat(this.filtros.valorMin) || 0;
-                            const maiorValor = Math.max(
-                                parseFloat(lic.valor_referencia) || 0,
-                                parseFloat(lic.valor_estimado) || 0,
-                                parseFloat(lic.valor_arrematado) || 0
-                            );
-                            if (maiorValor < min) {
-                                return false;
-                            }
-                        }
+@app.route('/api/clientes', methods=['GET', 'POST'])
+def handle_clientes():
+    conn = get_db_connection()
+    try:
+        if request.method == 'GET':
+            rows = conn.execute('SELECT * FROM clientes ORDER BY razao_social').fetchall()
+            return jsonify([dict(row) for row in rows])
 
-                        if (this.filtros.status && lic.status !== this.filtros.status) {
-                            return false;
-                        }
+        if request.method == 'POST':
+            data = request.json or {}
+            novo_id = int(data.get('id') or 0) or None
+            if is_postgres() and novo_id:
+                conn.execute('''
+                    INSERT INTO clientes (
+                        id, razao_social, cnpj, cnae_principal, contato,
+                        validade_cnd_federal, validade_cnd_estadual,
+                        validade_cnd_fgts, validade_cnd_trabalhista
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT (id) DO UPDATE SET
+                        razao_social = EXCLUDED.razao_social,
+                        cnpj = EXCLUDED.cnpj,
+                        cnae_principal = EXCLUDED.cnae_principal,
+                        contato = EXCLUDED.contato,
+                        validade_cnd_federal = EXCLUDED.validade_cnd_federal,
+                        validade_cnd_estadual = EXCLUDED.validade_cnd_estadual,
+                        validade_cnd_fgts = EXCLUDED.validade_cnd_fgts,
+                        validade_cnd_trabalhista = EXCLUDED.validade_cnd_trabalhista
+                ''', (
+                    novo_id, data.get('razao_social'), data.get('cnpj'), data.get('cnae_principal'),
+                    data.get('contato'), data.get('validade_cnd_federal'),
+                    data.get('validade_cnd_estadual'), data.get('validade_cnd_fgts'),
+                    data.get('validade_cnd_trabalhista')
+                ))
+            else:
+                conn.execute('''
+                    INSERT INTO clientes (
+                        razao_social, cnpj, cnae_principal, contato,
+                        validade_cnd_federal, validade_cnd_estadual,
+                        validade_cnd_fgts, validade_cnd_trabalhista
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    data.get('razao_social'), data.get('cnpj'), data.get('cnae_principal'),
+                    data.get('contato'), data.get('validade_cnd_federal'),
+                    data.get('validade_cnd_estadual'), data.get('validade_cnd_fgts'),
+                    data.get('validade_cnd_trabalhista')
+                ))
+            conn.commit()
+            return jsonify({'status': 'success'}), 201
+    finally:
+        conn.close()
 
-                        return true;
-                    });
-                },
-                licitacoesAtivas() {
-                    return this.licitacoes.filter(l => !['Ganho / Homologado', 'Perdido / Cancelado'].includes(l.status)).length;
-                },
-                totalArrematado() {
-                    return this.licitacoes
-                        .filter(l => l.status === 'Ganho / Homologado')
-                        .reduce((acc, l) => acc + (parseFloat(l.valor_arrematado) || 0), 0);
-                },
-                alertasCnd() {
-                    let count = 0;
-                    const hoje = new Date();
-                    const limite = new Date();
-                    limite.setDate(hoje.getDate() + 10);
 
-                    this.clientes.forEach(c => {
-                        [c.validade_cnd_federal, c.validade_cnd_estadual, c.validade_cnd_fgts, c.validade_cnd_trabalhista].forEach(dt => {
-                            if (dt && new Date(dt + 'T23:59:59') <= limite) count++;
-                        });
-                    });
-                    return count;
-                },
-                lanceMinimoCalculado() {
-                    const custoTotal = (this.calc.custo || 0) + (this.calc.frete || 0);
-                    const percentualTotal = ((this.calc.impostos || 0) + (this.calc.margem || 0)) / 100;
-                    if (percentualTotal >= 1) return 0;
-                    return custoTotal / (1 - percentualTotal);
-                }
-            },
-            methods: {
-                estadoInicialLicitacao() {
-                    return {
-                        cliente_id: null,
-                        orgao: '',
-                        numero_edital: '',
-                        objeto: '',
-                        portal: 'ComprasNet',
-                        link_edital: '',
-                        data_esclarecimento: '',
-                        data_disputa: '',
-                        valor_referencia: 0,
-                        valor_estimado: 0
-                    };
-                },
-                abrirNovoEdital() {
-                    this.novaLicitacao = this.estadoInicialLicitacao();
-                    this.modalLicitacao = true;
-                },
-                limparFiltrosColunas() {
-                    this.filtros = {
-                        data: '',
-                        cliente: '',
-                        edital: '',
-                        objeto: '',
-                        valorMin: null,
-                        status: ''
-                    };
-                },
-                normalizarUrl(url) {
-                    const limpo = (url || '').trim();
-                    if (!limpo) return '#';
-                    if (/^https?:\/\//i.test(limpo)) return limpo;
-                    return 'https://' + limpo;
-                },
-                carregarLogoSalva() {
-                    const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
-                    if (savedLogo) {
-                        this.logoSrc = savedLogo;
-                    }
-                },
-                onLogoError() {
-                    const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
-                    if (savedLogo && this.logoSrc !== savedLogo) {
-                        this.logoSrc = savedLogo;
-                    } else if (this.logoSrc !== FALLBACK_SVG) {
-                        this.logoSrc = FALLBACK_SVG;
-                    }
-                },
-                carregarLogoLocal(event) {
-                    const file = event.target.files[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        this.logoSrc = e.target.result;
-                        try {
-                            localStorage.setItem(LOGO_STORAGE_KEY, e.target.result);
-                        } catch (_) {}
-                    };
-                    reader.readAsDataURL(file);
-                },
-                salvarStorage() {
-                    try {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                            clientes: this.clientes,
-                            licitacoes: this.licitacoes
-                        }));
-                    } catch (_) {}
-                },
-                async carregarDadosServidor() {
-                    try {
-                        const [resCli, resLic] = await Promise.all([
-                            fetch('/api/clientes'),
-                            fetch('/api/licitacoes')
-                        ]);
-                        if (resCli.ok && resLic.ok) {
-                            const cliApi = await resCli.json();
-                            const licApi = await resLic.json();
-                            this.clientes = cliApi;
-                            this.licitacoes = licApi.map(l => ({
-                                link_edital: '',
-                                data_esclarecimento: '',
-                                valor_referencia: 0,
-                                valor_estimado: 0,
-                                valor_arrematado: 0,
-                                ...l
-                            }));
-                            this.salvarStorage();
-                            return;
-                        }
-                    } catch (_) {}
+@app.route('/api/clientes/<int:id>', methods=['DELETE'])
+def delete_cliente(id):
+    conn = get_db_connection()
+    try:
+        conn.execute('DELETE FROM clientes WHERE id = ?', (id,))
+        conn.commit()
+        return jsonify({'status': 'deleted'})
+    finally:
+        conn.close()
 
-                    try {
-                        const raw = localStorage.getItem(STORAGE_KEY);
-                        if (raw) {
-                            const parsed = JSON.parse(raw);
-                            this.clientes = parsed.clientes || [];
-                            this.licitacoes = (parsed.licitacoes || []).map(l => ({
-                                link_edital: '',
-                                data_esclarecimento: '',
-                                valor_referencia: 0,
-                                ...l
-                            }));
-                        }
-                    } catch (_) {
-                        this.clientes = [];
-                        this.licitacoes = [];
-                    }
-                },
-                nomeCliente(clienteId) {
-                    const found = this.clientes.find(c => Number(c.id) === Number(clienteId));
-                    return found ? found.razao_social : 'Cliente não vinculado';
-                },
-                async salvarCliente() {
-                    if (!this.novoCliente.razao_social || !this.novoCliente.cnpj) {
-                        alert('Preencha Razão Social e CNPJ.');
-                        return;
-                    }
-                    const payload = {
-                        id: Date.now(),
-                        ...this.novoCliente
-                    };
-                    this.clientes.push(payload);
-                    this.salvarStorage();
-                    try {
-                        await fetch('/api/clientes', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                        await this.carregarDadosServidor();
-                    } catch (_) {}
-                    this.novoCliente = { razao_social: '', cnpj: '', cnae_principal: '', contato: '', validade_cnd_federal: '', validade_cnd_estadual: '', validade_cnd_fgts: '', validade_cnd_trabalhista: '' };
-                    this.modalCliente = false;
-                },
-                async excluirCliente(id) {
-                    if (!confirm('Remover este cliente?')) return;
-                    this.clientes = this.clientes.filter(c => c.id !== id);
-                    this.salvarStorage();
-                    try {
-                        await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
-                    } catch (_) {}
-                },
-                async salvarLicitacao() {
-                    if (!this.novaLicitacao.orgao || !this.novaLicitacao.numero_edital) {
-                        alert('Preencha Órgão e Número do Edital.');
-                        return;
-                    }
-                    const payload = {
-                        id: Date.now(),
-                        ...this.novaLicitacao,
-                        link_edital: (this.novaLicitacao.link_edital || '').trim(),
-                        valor_referencia: parseFloat(this.novaLicitacao.valor_referencia) || 0,
-                        valor_estimado: parseFloat(this.novaLicitacao.valor_estimado) || 0,
-                        valor_arrematado: 0,
-                        status: 'Analisando Edital',
-                        observacoes: ''
-                    };
-                    this.licitacoes.push(payload);
-                    this.salvarStorage();
-                    try {
-                        await fetch('/api/licitacoes', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                        await this.carregarDadosServidor();
-                    } catch (_) {}
-                    this.novaLicitacao = this.estadoInicialLicitacao();
-                    this.modalLicitacao = false;
-                },
-                async atualizarStatusLicitacao(lic) {
-                    this.salvarStorage();
-                    try {
-                        await fetch(`/api/licitacoes/${lic.id}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                link_edital: lic.link_edital || '',
-                                data_esclarecimento: lic.data_esclarecimento || '',
-                                data_disputa: lic.data_disputa || '',
-                                valor_referencia: parseFloat(lic.valor_referencia) || 0,
-                                valor_estimado: parseFloat(lic.valor_estimado) || 0,
-                                valor_arrematado: parseFloat(lic.valor_arrematado) || 0,
-                                status: lic.status,
-                                observacoes: lic.observacoes || ''
-                            })
-                        });
-                    } catch (_) {}
-                },
-                abrirEdicaoValor(lic) {
-                    this.licitacaoEditando = { ...lic };
-                },
-                async salvarEdicaoValor() {
-                    const idx = this.licitacoes.findIndex(l => l.id === this.licitacaoEditando.id);
-                    const atualizado = {
-                        link_edital: (this.licitacaoEditando.link_edital || '').trim(),
-                        data_esclarecimento: this.licitacaoEditando.data_esclarecimento || '',
-                        data_disputa: this.licitacaoEditando.data_disputa || '',
-                        valor_referencia: parseFloat(this.licitacaoEditando.valor_referencia) || 0,
-                        valor_estimado: parseFloat(this.licitacaoEditando.valor_estimado) || 0,
-                        valor_arrematado: parseFloat(this.licitacaoEditando.valor_arrematado) || 0,
-                        status: this.licitacaoEditando.status || 'Analisando Edital',
-                        observacoes: this.licitacaoEditando.observacoes || ''
-                    };
-                    if (idx !== -1) {
-                        this.licitacoes[idx] = { ...this.licitacoes[idx], ...atualizado };
-                        this.salvarStorage();
-                    }
-                    try {
-                        await fetch(`/api/licitacoes/${this.licitacaoEditando.id}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(atualizado)
-                        });
-                        await this.carregarDadosServidor();
-                    } catch (_) {}
-                    this.licitacaoEditando = null;
-                },
-                async excluirLicitacao(id) {
-                    if (!confirm('Excluir este edital?')) return;
-                    this.licitacoes = this.licitacoes.filter(l => l.id !== id);
-                    this.salvarStorage();
-                    try {
-                        await fetch(`/api/licitacoes/${id}`, { method: 'DELETE' });
-                    } catch (_) {}
-                },
-                formatarMoeda(valor) {
-                    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
-                },
-                formatarDataHora(dt) {
-                    if (!dt) return 'A definir';
-                    const d = new Date(dt);
-                    if (isNaN(d.getTime())) return dt;
-                    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                },
-                statusValidade(dataStr) {
-                    if (!dataStr) return { texto: 'Não inf.', classe: 'text-slate-500' };
-                    const hoje = new Date();
-                    hoje.setHours(0, 0, 0, 0);
-                    const val = new Date(dataStr + 'T00:00:00');
-                    const diffDias = Math.ceil((val - hoje) / (1000 * 60 * 60 * 24));
-                    const dataFmt = val.toLocaleDateString('pt-BR');
 
-                    if (diffDias < 0) return { texto: `${dataFmt} (Vencida)`, classe: 'text-rose-500' };
-                    if (diffDias <= 10) return { texto: `${dataFmt} (${diffDias}d)`, classe: 'text-amber-400' };
-                    return { texto: dataFmt, classe: 'text-emerald-400' };
-                },
-                estiloBadgeStatus(status) {
-                    const mapa = {
-                        'Analisando Edital': 'bg-slate-800/90 border-slate-600 text-slate-200',
-                        'Documentação OK': 'bg-cyan-950/70 border-cyan-500/50 text-cyan-300',
-                        'Proposta Cadastrada': 'bg-indigo-950/70 border-indigo-500/50 text-indigo-300',
-                        'Em Disputa': 'bg-sky-950/80 border-sky-400/60 text-sky-300',
-                        'Habilitação / Recurso': 'bg-amber-950/70 border-amber-500/50 text-amber-300',
-                        'Ganho / Homologado': 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300',
-                        'Perdido / Cancelado': 'bg-rose-950/75 border-rose-500/60 text-rose-300'
-                    };
-                    return mapa[status] || 'bg-slate-800 border-slate-700 text-slate-300';
-                },
-                pontoStatus(status) {
-                    const mapa = {
-                        'Analisando Edital': 'bg-slate-400',
-                        'Documentação OK': 'bg-cyan-400',
-                        'Proposta Cadastrada': 'bg-indigo-400',
-                        'Em Disputa': 'bg-sky-400 animate-pulse',
-                        'Habilitação / Recurso': 'bg-amber-400',
-                        'Ganho / Homologado': 'bg-emerald-400',
-                        'Perdido / Cancelado': 'bg-rose-500'
-                    };
-                    return mapa[status] || 'bg-slate-400';
-                }
-            },
-            mounted() {
-                this.carregarLogoSalva();
-                this.carregarDadosServidor();
-            }
-        }).mount('#app');
-    </script>
-</body>
-</html>
+@app.route('/api/licitacoes', methods=['GET', 'POST'])
+def handle_licitacoes():
+    conn = get_db_connection()
+    try:
+        if request.method == 'GET':
+            query = '''
+                SELECT l.*, c.razao_social as cliente_nome
+                FROM licitacoes l
+                LEFT JOIN clientes c ON l.cliente_id = c.id
+                ORDER BY l.data_disputa ASC
+            '''
+            rows = conn.execute(query).fetchall()
+            return jsonify([dict(row) for row in rows])
+
+        if request.method == 'POST':
+            data = request.json or {}
+            novo_id = int(data.get('id') or 0) or None
+            cliente_id = data.get('cliente_id')
+            cliente_id = int(cliente_id) if cliente_id not in (None, '', 'null') else None
+
+            if is_postgres() and novo_id:
+                conn.execute('''
+                    INSERT INTO licitacoes (
+                        id, cliente_id, orgao, numero_edital, objeto, portal,
+                        link_edital, data_esclarecimento, data_disputa,
+                        valor_referencia, valor_estimado, valor_arrematado,
+                        status, observacoes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT (id) DO UPDATE SET
+                        cliente_id = EXCLUDED.cliente_id,
+                        orgao = EXCLUDED.orgao,
+                        numero_edital = EXCLUDED.numero_edital,
+                        objeto = EXCLUDED.objeto,
+                        portal = EXCLUDED.portal,
+                        link_edital = EXCLUDED.link_edital,
+                        data_esclarecimento = EXCLUDED.data_esclarecimento,
+                        data_disputa = EXCLUDED.data_disputa,
+                        valor_referencia = EXCLUDED.valor_referencia,
+                        valor_estimado = EXCLUDED.valor_estimado,
+                        valor_arrematado = EXCLUDED.valor_arrematado,
+                        status = EXCLUDED.status,
+                        observacoes = EXCLUDED.observacoes
+                ''', (
+                    novo_id, cliente_id, data.get('orgao'), data.get('numero_edital'),
+                    data.get('objeto'), data.get('portal'),
+                    (data.get('link_edital') or '').strip(),
+                    data.get('data_esclarecimento') or '',
+                    data.get('data_disputa') or '',
+                    float(data.get('valor_referencia') or 0),
+                    float(data.get('valor_estimado') or 0),
+                    float(data.get('valor_arrematado') or 0),
+                    data.get('status', 'Analisando Edital'),
+                    data.get('observacoes', '')
+                ))
+            else:
+                conn.execute('''
+                    INSERT INTO licitacoes (
+                        cliente_id, orgao, numero_edital, objeto, portal,
+                        link_edital, data_esclarecimento, data_disputa,
+                        valor_referencia, valor_estimado, valor_arrematado,
+                        status, observacoes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    cliente_id, data.get('orgao'), data.get('numero_edital'),
+                    data.get('objeto'), data.get('portal'),
+                    (data.get('link_edital') or '').strip(),
+                    data.get('data_esclarecimento') or '',
+                    data.get('data_disputa') or '',
+                    float(data.get('valor_referencia') or 0),
+                    float(data.get('valor_estimado') or 0),
+                    float(data.get('valor_arrematado') or 0),
+                    data.get('status', 'Analisando Edital'),
+                    data.get('observacoes', '')
+                ))
+            conn.commit()
+            return jsonify({'status': 'success'}), 201
+    finally:
+        conn.close()
+
+
+@app.route('/api/licitacoes/<int:id>', methods=['PUT', 'DELETE'])
+def update_delete_licitacao(id):
+    conn = get_db_connection()
+    try:
+        if request.method == 'PUT':
+            data = request.json or {}
+            conn.execute('''
+                UPDATE licitacoes
+                SET link_edital = ?,
+                    data_esclarecimento = ?,
+                    data_disputa = ?,
+                    valor_referencia = ?,
+                    valor_estimado = ?,
+                    valor_arrematado = ?,
+                    status = ?,
+                    observacoes = ?
+                WHERE id = ?
+            ''', (
+                (data.get('link_edital') or '').strip(),
+                data.get('data_esclarecimento') or '',
+                data.get('data_disputa') or '',
+                float(data.get('valor_referencia') or 0),
+                float(data.get('valor_estimado') or 0),
+                float(data.get('valor_arrematado') or 0),
+                data.get('status', 'Analisando Edital'),
+                data.get('observacoes', ''),
+                id
+            ))
+            conn.commit()
+            return jsonify({'status': 'updated'})
+
+        if request.method == 'DELETE':
+            conn.execute('DELETE FROM licitacoes WHERE id = ?', (id,))
+            conn.commit()
+            return jsonify({'status': 'deleted'})
+    finally:
+        conn.close()
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
