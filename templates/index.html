@@ -10,449 +10,668 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
     <div id="app" class="flex flex-col min-h-screen">
-        
-        <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <label title="Clique para carregar ou trocar a logo" class="h-16 px-3 rounded-xl bg-white border border-emerald-500/40 flex items-center justify-center overflow-hidden shadow-md cursor-pointer hover:border-emerald-400 transition">
-                    <img :src="'/static/img/logo.jpeg'" @error="onLogoError" alt="Barbosa Licitações" class="h-14 w-auto object-contain">
-                    <input type="file" accept="image/*" @change="carregarLogoLocal" class="hidden">
-                </label>
-                <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-white">Barbosa Licitações</h1>
-                    <p class="text-xs text-emerald-400 font-medium">Assessoria e Gestão em Licitações Públicas</p>
-                </div>
-            </div>
 
-            <nav class="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-                <button @click="abaAtiva = 'licitacoes'" 
-                    :class="abaAtiva === 'licitacoes' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                    class="px-4 py-2 rounded-md text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-gavel"></i> Pregões & Editais
-                </button>
-                <button @click="abaAtiva = 'clientes'" 
-                    :class="abaAtiva === 'clientes' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                    class="px-4 py-2 rounded-md text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-building"></i> Clientes & CNDs
-                </button>
-                <button @click="abaAtiva = 'calculadora'" 
-                    :class="abaAtiva === 'calculadora' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                    class="px-4 py-2 rounded-md text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-calculator"></i> Calculadora de Lance
-                </button>
-            </nav>
-        </header>
-
-        <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                    <div class="text-slate-400 text-xs uppercase font-semibold">Editais Ativos</div>
-                    <div class="text-3xl font-bold text-white mt-1">{{ licitacoesAtivas }}</div>
-                    <div class="text-xs text-slate-500 mt-1">Em análise ou disputa</div>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                    <div class="text-slate-400 text-xs uppercase font-semibold">Total Arrematado</div>
-                    <div class="text-2xl font-bold text-emerald-400 mt-1">{{ formatarMoeda(totalArrematado) }}</div>
-                    <div class="text-xs text-slate-500 mt-1">Contratos homologados/ganhos</div>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                    <div class="text-slate-400 text-xs uppercase font-semibold">Clientes Assessorados</div>
-                    <div class="text-3xl font-bold text-sky-400 mt-1">{{ clientes.length }}</div>
-                    <div class="text-xs text-slate-500 mt-1">Empresas cadastradas</div>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                    <div class="text-slate-400 text-xs uppercase font-semibold">Alertas de CND</div>
-                    <div class="text-3xl font-bold mt-1" :class="alertasCnd > 0 ? 'text-rose-500' : 'text-emerald-400'">
-                        {{ alertasCnd }}
+        <!-- Tela de Login em Destaque com a Logo -->
+        <div v-if="!carregandoSessao && !usuario" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950">
+            <div class="w-full max-w-md bg-slate-900/95 border border-slate-800 rounded-2xl p-7 shadow-2xl space-y-6">
+                <div class="flex flex-col items-center text-center space-y-3">
+                    <label title="Clique para carregar ou trocar a logo" class="w-56 h-32 px-5 py-3 rounded-2xl bg-white border-2 border-emerald-500/50 flex items-center justify-center overflow-hidden shadow-xl cursor-pointer hover:border-emerald-400 transition">
+                        <img :src="logoSrc" @error="onLogoError" alt="Logo Barbosa Licitações" class="max-h-28 w-auto object-contain">
+                        <input type="file" accept="image/*" @change="carregarLogoLocal" class="hidden">
+                    </label>
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight text-white">Barbosa Licitações</h1>
+                        <p class="text-xs text-emerald-400 font-semibold uppercase tracking-wider mt-0.5">
+                            Assessoria e Gestão em Licitações Públicas
+                        </p>
                     </div>
-                    <div class="text-xs text-slate-500 mt-1">Vencidas ou vencendo em 10 dias</div>
+                </div>
+
+                <form @submit.prevent="fazerLogin" class="space-y-4 text-sm">
+                    <div>
+                        <label class="block text-slate-300 text-xs font-semibold mb-1">E-mail de Acesso</label>
+                        <input type="email" v-model="loginForm.email" required placeholder="seu@email.com"
+                            class="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 text-xs font-semibold mb-1">Senha</label>
+                        <input type="password" v-model="loginForm.senha" required placeholder="••••••••"
+                            class="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
+                    </div>
+
+                    <div v-if="erroAuth" class="bg-rose-950/70 border border-rose-500/50 text-rose-300 text-xs rounded-xl px-3.5 py-2.5">
+                        {{ erroAuth }}
+                    </div>
+
+                    <button type="submit" :disabled="enviandoAuth"
+                        class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/60">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        {{ enviandoAuth ? 'Entrando...' : 'Entrar no Sistema' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tela Obrigatória de Troca de Senha no Primeiro Acesso -->
+        <div v-else-if="!carregandoSessao && usuario && usuario.precisa_trocar_senha" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950">
+            <div class="w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-2xl p-7 shadow-2xl space-y-5">
+                <div class="flex flex-col items-center text-center space-y-3">
+                    <div class="w-44 h-24 px-4 py-2 rounded-xl bg-white border border-amber-400/50 flex items-center justify-center overflow-hidden shadow-md">
+                        <img :src="logoSrc" @error="onLogoError" alt="Logo Barbosa Licitações" class="max-h-20 w-auto object-contain">
+                    </div>
+                    <div>
+                        <span class="inline-block text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+                            Primeiro Acesso
+                        </span>
+                        <h2 class="text-xl font-bold text-white mt-2">Defina sua Nova Senha</h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Olá, <span class="text-slate-200 font-medium">{{ usuario.nome }}</span>. Por segurança, troque sua senha provisória para continuar.
+                        </p>
+                    </div>
+                </div>
+
+                <form @submit.prevent="salvarNovaSenha" class="space-y-3.5 text-sm">
+                    <div>
+                        <label class="block text-slate-300 text-xs font-semibold mb-1">Nova Senha (mín. 6 caracteres)</label>
+                        <input type="password" v-model="senhaForm.novaSenha" required minlength="6" placeholder="Digite a nova senha"
+                            class="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 text-xs font-semibold mb-1">Confirmar Nova Senha</label>
+                        <input type="password" v-model="senhaForm.confirmarSenha" required minlength="6" placeholder="Repita a nova senha"
+                            class="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
+                    </div>
+
+                    <div v-if="erroSenha" class="bg-rose-950/70 border border-rose-500/50 text-rose-300 text-xs rounded-xl px-3.5 py-2.5">
+                        {{ erroSenha }}
+                    </div>
+
+                    <button type="submit" :disabled="enviandoSenha"
+                        class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition">
+                        {{ enviandoSenha ? 'Salvando...' : 'Salvar Senha e Acessar' }}
+                    </button>
+                </form>
+
+                <div class="text-center pt-1">
+                    <button @click="sair" class="text-xs text-slate-400 hover:text-white underline">Sair da conta</button>
                 </div>
             </div>
+        </div>
 
-            <section v-if="abaAtiva === 'licitacoes'" class="space-y-4">
-                <div class="flex flex-wrap justify-between items-center gap-4">
-                    <div class="flex flex-wrap items-center gap-3">
-                        <h2 class="text-lg font-bold text-white">Controle de Pregões e Editais</h2>
-                        <span class="text-xs bg-slate-900 border border-slate-800 text-slate-300 px-2.5 py-1 rounded-full">
-                            Exibindo {{ licitacoesFiltradas.length }} de {{ licitacoes.length }}
-                        </span>
-                        <button v-if="temFiltroAtivo" @click="limparFiltrosColunas"
-                            class="text-xs bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-filter-circle-xmark"></i> Limpar Filtros
+        <!-- Sistema Principal -->
+        <template v-else-if="!carregandoSessao && usuario">
+            <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <label title="Clique para carregar ou trocar a logo" class="h-16 px-3 rounded-xl bg-white border border-emerald-500/40 flex items-center justify-center overflow-hidden shadow-md cursor-pointer hover:border-emerald-400 transition">
+                        <img :src="logoSrc" @error="onLogoError" alt="Barbosa Licitações" class="h-14 w-auto object-contain">
+                        <input type="file" accept="image/*" @change="carregarLogoLocal" class="hidden">
+                    </label>
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight text-white">Barbosa Licitações</h1>
+                        <p class="text-xs text-emerald-400 font-medium">Assessoria e Gestão em Licitações Públicas</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <nav class="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                        <button @click="abaAtiva = 'licitacoes'"
+                            :class="abaAtiva === 'licitacoes' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
+                            class="px-3.5 py-2 rounded-md text-sm transition flex items-center gap-2">
+                            <i class="fa-solid fa-gavel"></i> Pregões & Editais
+                        </button>
+                        <button @click="abaAtiva = 'clientes'"
+                            :class="abaAtiva === 'clientes' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
+                            class="px-3.5 py-2 rounded-md text-sm transition flex items-center gap-2">
+                            <i class="fa-solid fa-building"></i> Clientes & CNDs
+                        </button>
+                        <button @click="abaAtiva = 'calculadora'"
+                            :class="abaAtiva === 'calculadora' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
+                            class="px-3.5 py-2 rounded-md text-sm transition flex items-center gap-2">
+                            <i class="fa-solid fa-calculator"></i> Calculadora
+                        </button>
+                        <button v-if="isAdmin" @click="abrirAbaUsuarios"
+                            :class="abaAtiva === 'usuarios' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
+                            class="px-3.5 py-2 rounded-md text-sm transition flex items-center gap-2">
+                            <i class="fa-solid fa-users-gear"></i> Usuários
+                        </button>
+                    </nav>
+
+                    <div class="flex items-center gap-2.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
+                        <div class="text-right">
+                            <div class="font-semibold text-white">{{ usuario.nome }}</div>
+                            <div :class="isAdmin ? 'text-emerald-400' : 'text-sky-400'" class="uppercase text-[10px] font-bold">
+                                {{ isAdmin ? 'Administrador' : 'Somente Visualização' }}
+                            </div>
+                        </div>
+                        <button @click="sair" title="Sair" class="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-900 transition">
+                            <i class="fa-solid fa-right-from-bracket"></i>
                         </button>
                     </div>
-                    <button @click="abrirNovoEdital" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
-                        <i class="fa-solid fa-plus"></i> Novo Edital
-                    </button>
+                </div>
+            </header>
+
+            <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+
+                <div v-if="!isAdmin" class="bg-sky-950/40 border border-sky-500/30 text-sky-200 rounded-xl px-4 py-2.5 text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-eye text-sky-400"></i>
+                    <span>Você está conectado em modo de <strong>visualização</strong>. Para cadastrar, editar ou excluir registros, fale com um administrador.</span>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[1150px]">
-                        <thead>
-                            <tr class="border-b border-slate-800 text-xs uppercase text-slate-400 bg-slate-900/70">
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Datas (Escl. / Disputa)</div>
-                                    <div class="flex items-center gap-1">
-                                        <input type="date" v-model="filtros.data" title="Filtrar por data de esclarecimento ou disputa"
-                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case" @click="$event.target.showPicker && $event.target.showPicker()">
-                                    </div>
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Cliente</div>
-                                    <input type="text" v-model="filtros.cliente" placeholder="Filtrar cliente..."
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Órgão / Edital / Link</div>
-                                    <input type="text" v-model="filtros.edital" placeholder="Órgão, edital, portal..."
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Objeto</div>
-                                    <input type="text" v-model="filtros.objeto" placeholder="Filtrar objeto..."
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Valores (Ref / Est / Ganho)</div>
-                                    <input type="number" step="0.01" v-model.number="filtros.valorMin" placeholder="Valor mín. (R$)..."
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                </th>
-                                <th class="p-3.5 align-top">
-                                    <div class="mb-2">Status</div>
-                                    <select v-model="filtros.status"
-                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
-                                        <option value="">Todos</option>
-                                        <option v-for="st in statusOptions" :key="st" :value="st">{{ st }}</option>
-                                    </select>
-                                </th>
-                                <th class="p-3.5 align-top text-right">
-                                    <div class="mb-2">Ações</div>
-                                    <span class="text-[10px] text-slate-500 normal-case">Editar / Excluir</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-800 text-sm">
-                            <tr v-if="licitacoesFiltradas.length === 0">
-                                <td colspan="7" class="p-8 text-center text-slate-500">
-                                    Nenhuma licitação encontrada para os critérios atuais.
-                                </td>
-                            </tr>
-                            <tr v-for="lic in licitacoesFiltradas" :key="lic.id" class="hover:bg-slate-800/40 transition align-top">
-                                <td class="p-3.5 whitespace-nowrap font-mono text-xs space-y-1.5">
-                                    <div>
-                                        <span class="text-[10px] uppercase text-amber-400/90 block">Esclarecimento</span>
-                                        <span class="text-amber-300">{{ formatarDataHora(lic.data_esclarecimento) }}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-[10px] uppercase text-emerald-400/90 block">Disputa</span>
-                                        <span class="text-emerald-400 font-semibold">{{ formatarDataHora(lic.data_disputa) }}</span>
-                                    </div>
-                                </td>
-                                <td class="p-3.5 font-medium text-white">
-                                    {{ nomeCliente(lic.cliente_id) }}
-                                </td>
-                                <td class="p-3.5 space-y-1">
-                                    <div class="font-semibold text-slate-200">{{ lic.orgao }}</div>
-                                    <div class="text-xs text-slate-400">Edital: {{ lic.numero_edital }} • {{ lic.portal || 'Portal N/I' }}</div>
-                                    <div v-if="lic.link_edital" class="pt-0.5">
-                                        <a :href="normalizarUrl(lic.link_edital)" target="_blank" rel="noopener noreferrer"
-                                            class="inline-flex items-center gap-1.5 text-xs font-medium text-sky-400 hover:text-sky-300 underline decoration-sky-500/40">
-                                            <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i> Abrir Edital
-                                        </a>
-                                    </div>
-                                </td>
-                                <td class="p-3.5 max-w-xs text-slate-300 text-xs leading-relaxed">
-                                    <div class="line-clamp-3" :title="lic.objeto">{{ lic.objeto }}</div>
-                                </td>
-                                <td class="p-3.5 whitespace-nowrap text-xs space-y-0.5">
-                                    <div class="text-sky-300">Ref: <span class="font-semibold">{{ formatarMoeda(lic.valor_referencia) }}</span></div>
-                                    <div class="text-slate-400">Est: {{ formatarMoeda(lic.valor_estimado) }}</div>
-                                    <div v-if="lic.valor_arrematado > 0" class="text-emerald-400 font-semibold">
-                                        Ganho: {{ formatarMoeda(lic.valor_arrematado) }}
-                                    </div>
-                                </td>
-                                <td class="p-3.5">
-                                    <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border text-xs font-semibold shadow-sm"
-                                        :class="estiloBadgeStatus(lic.status)">
-                                        <span class="w-2 h-2 rounded-full" :class="pontoStatus(lic.status)"></span>
-                                        <select v-model="lic.status" @change="salvarStorage"
-                                            class="bg-transparent focus:outline-none cursor-pointer pr-1 font-semibold">
-                                            <option v-for="st in statusOptions" :key="st" :value="st" class="bg-slate-900 text-slate-100">
-                                                {{ st }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                </td>
-                                <td class="p-3.5 text-right whitespace-nowrap space-x-2">
-                                    <button @click="abrirEdicaoValor(lic)" title="Editar Edital / Valor Ganho / Obs" class="text-slate-400 hover:text-emerald-400 p-1.5 rounded hover:bg-slate-800 transition">
-                                        <i class="fa-solid fa-pen-to-square"></i>
-                                    </button>
-                                    <button @click="excluirLicitacao(lic.id)" title="Excluir" class="text-slate-400 hover:text-rose-500 p-1.5 rounded hover:bg-slate-800 transition">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section v-if="abaAtiva === 'clientes'" class="space-y-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-lg font-bold text-white">Empresas Assessoradas & Validade de Certidões (CNDs)</h2>
-                    <button @click="modalCliente = true" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
-                        <i class="fa-solid fa-plus"></i> Novo Cliente
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div v-if="clientes.length === 0" class="col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-500">
-                        Nenhum cliente cadastrado. Cadastre as empresas que a Barbosa Licitações assessora.
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                        <div class="text-slate-400 text-xs uppercase font-semibold">Editais Ativos</div>
+                        <div class="text-3xl font-bold text-white mt-1">{{ licitacoesAtivas }}</div>
+                        <div class="text-xs text-slate-500 mt-1">Em análise ou disputa</div>
                     </div>
-                    <div v-for="cli in clientes" :key="cli.id" class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="font-bold text-white text-base">{{ cli.razao_social }}</h3>
-                                <p class="text-xs text-slate-400 font-mono">CNPJ: {{ cli.cnpj }} | CNAE: {{ cli.cnae_principal || 'N/I' }}</p>
-                                <p class="text-xs text-slate-400 mt-0.5"><i class="fa-brands fa-whatsapp text-emerald-400"></i> {{ cli.contato || 'Sem contato' }}</p>
-                            </div>
-                            <button @click="excluirCliente(cli.id)" class="text-slate-500 hover:text-rose-500 text-sm">
-                                <i class="fa-solid fa-trash"></i>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                        <div class="text-slate-400 text-xs uppercase font-semibold">Total Arrematado</div>
+                        <div class="text-2xl font-bold text-emerald-400 mt-1">{{ formatarMoeda(totalArrematado) }}</div>
+                        <div class="text-xs text-slate-500 mt-1">Contratos homologados/ganhos</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                        <div class="text-slate-400 text-xs uppercase font-semibold">Clientes Assessorados</div>
+                        <div class="text-3xl font-bold text-sky-400 mt-1">{{ clientes.length }}</div>
+                        <div class="text-xs text-slate-500 mt-1">Empresas cadastradas</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                        <div class="text-slate-400 text-xs uppercase font-semibold">Alertas de CND</div>
+                        <div class="text-3xl font-bold mt-1" :class="alertasCnd > 0 ? 'text-rose-500' : 'text-emerald-400'">
+                            {{ alertasCnd }}
+                        </div>
+                        <div class="text-xs text-slate-500 mt-1">Vencidas ou vencendo em 10 dias</div>
+                    </div>
+                </div>
+
+                <!-- Aba Pregões & Editais -->
+                <section v-if="abaAtiva === 'licitacoes'" class="space-y-4">
+                    <div class="flex flex-wrap justify-between items-center gap-4">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <h2 class="text-lg font-bold text-white">Controle de Pregões e Editais</h2>
+                            <span class="text-xs bg-slate-900 border border-slate-800 text-slate-300 px-2.5 py-1 rounded-full">
+                                Exibindo {{ licitacoesFiltradas.length }} de {{ licitacoes.length }}
+                            </span>
+                            <button v-if="temFiltroAtivo" @click="limparFiltrosColunas"
+                                class="text-xs bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-filter-circle-xmark"></i> Limpar Filtros
                             </button>
                         </div>
+                        <button v-if="isAdmin" @click="abrirNovoEdital" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
+                            <i class="fa-solid fa-plus"></i> Novo Edital
+                        </button>
+                    </div>
 
-                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
-                            <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
-                                <span class="text-slate-400">CND Federal:</span>
-                                <span :class="statusValidade(cli.validade_cnd_federal).classe" class="font-semibold">
-                                    {{ statusValidade(cli.validade_cnd_federal).texto }}
-                                </span>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[1150px]">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-xs uppercase text-slate-400 bg-slate-900/70">
+                                    <th class="p-3.5 align-top">
+                                        <div class="mb-2">Datas (Escl. / Disputa)</div>
+                                        <div class="flex items-center gap-1">
+                                            <input type="date" v-model="filtros.data" title="Filtrar por data de esclarecimento ou disputa"
+                                                class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case" @click="$event.target.showPicker && $event.target.showPicker()">
+                                        </div>
+                                    </th>
+                                    <th class="p-3.5 align-top">
+                                        <div class="mb-2">Cliente</div>
+                                        <input type="text" v-model="filtros.cliente" placeholder="Filtrar cliente..."
+                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
+                                    </th>
+                                    <th class="p-3.5 align-top">
+                                        <div class="mb-2">Órgão / Edital / Link</div>
+                                        <input type="text" v-model="filtros.edital" placeholder="Órgão, edital, portal..."
+                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
+                                    </th>
+                                    <th class="p-3.5 align-top">
+                                        <div class="mb-2">Objeto</div>
+                                        <input type="text" v-model="filtros.objeto" placeholder="Filtrar objeto..."
+                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
+                                    </th>
+                                    <th class="p-3.5 align-top">
+                                        <div class="mb-2">Valores (Ref / Est / Ganho)</div>
+                                        <input type="number" step="0.01" v-model.number="filtros.valorMin" placeholder="Valor mín. (R$)..."
+                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
+                                    </th>
+                                    <th class="p-3.5 align-top">
+                                        <div class="mb-2">Status</div>
+                                        <select v-model="filtros.status"
+                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 normal-case">
+                                            <option value="">Todos</option>
+                                            <option v-for="st in statusOptions" :key="st" :value="st">{{ st }}</option>
+                                        </select>
+                                    </th>
+                                    <th v-if="isAdmin" class="p-3.5 align-top text-right">
+                                        <div class="mb-2">Ações</div>
+                                        <span class="text-[10px] text-slate-500 normal-case">Editar / Excluir</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-sm">
+                                <tr v-if="licitacoesFiltradas.length === 0">
+                                    <td :colspan="isAdmin ? 7 : 6" class="p-8 text-center text-slate-500">
+                                        Nenhuma licitação encontrada para os critérios atuais.
+                                    </td>
+                                </tr>
+                                <tr v-for="lic in licitacoesFiltradas" :key="lic.id" class="hover:bg-slate-800/40 transition align-top">
+                                    <td class="p-3.5 whitespace-nowrap font-mono text-xs space-y-1.5">
+                                        <div>
+                                            <span class="text-[10px] uppercase text-amber-400/90 block">Esclarecimento</span>
+                                            <span class="text-amber-300">{{ formatarDataHora(lic.data_esclarecimento) }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-[10px] uppercase text-emerald-400/90 block">Disputa</span>
+                                            <span class="text-emerald-400 font-semibold">{{ formatarDataHora(lic.data_disputa) }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-3.5 font-medium text-white">
+                                        {{ lic.cliente_nome || nomeCliente(lic.cliente_id) }}
+                                    </td>
+                                    <td class="p-3.5 space-y-1">
+                                        <div class="font-semibold text-slate-200">{{ lic.orgao }}</div>
+                                        <div class="text-xs text-slate-400">Edital: {{ lic.numero_edital }} • {{ lic.portal || 'Portal N/I' }}</div>
+                                        <div v-if="lic.link_edital" class="pt-0.5">
+                                            <a :href="normalizarUrl(lic.link_edital)" target="_blank" rel="noopener noreferrer"
+                                                class="inline-flex items-center gap-1.5 text-xs font-medium text-sky-400 hover:text-sky-300 underline decoration-sky-500/40">
+                                                <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i> Abrir Edital
+                                            </a>
+                                        </div>
+                                    </td>
+                                    <td class="p-3.5 max-w-xs text-slate-300 text-xs leading-relaxed">
+                                        <div class="line-clamp-3" :title="lic.objeto">{{ lic.objeto }}</div>
+                                    </td>
+                                    <td class="p-3.5 whitespace-nowrap text-xs space-y-0.5">
+                                        <div class="text-sky-300">Ref: <span class="font-semibold">{{ formatarMoeda(lic.valor_referencia) }}</span></div>
+                                        <div class="text-slate-400">Est: {{ formatarMoeda(lic.valor_estimado) }}</div>
+                                        <div v-if="lic.valor_arrematado > 0" class="text-emerald-400 font-semibold">
+                                            Ganho: {{ formatarMoeda(lic.valor_arrematado) }}
+                                        </div>
+                                    </td>
+                                    <td class="p-3.5">
+                                        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border text-xs font-semibold shadow-sm"
+                                            :class="estiloBadgeStatus(lic.status)">
+                                            <span class="w-2 h-2 rounded-full" :class="pontoStatus(lic.status)"></span>
+                                            <select v-if="isAdmin" v-model="lic.status" @change="atualizarStatusLicitacao(lic)"
+                                                class="bg-transparent focus:outline-none cursor-pointer pr-1 font-semibold">
+                                                <option v-for="st in statusOptions" :key="st" :value="st" class="bg-slate-900 text-slate-100">
+                                                    {{ st }}
+                                                </option>
+                                            </select>
+                                            <span v-else>{{ lic.status }}</span>
+                                        </div>
+                                    </td>
+                                    <td v-if="isAdmin" class="p-3.5 text-right whitespace-nowrap space-x-2">
+                                        <button @click="abrirEdicaoValor(lic)" title="Editar Edital / Valor Ganho / Obs" class="text-slate-400 hover:text-emerald-400 p-1.5 rounded hover:bg-slate-800 transition">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
+                                        <button @click="excluirLicitacao(lic.id)" title="Excluir" class="text-slate-400 hover:text-rose-500 p-1.5 rounded hover:bg-slate-800 transition">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Aba Clientes & CNDs -->
+                <section v-if="abaAtiva === 'clientes'" class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-white">Empresas Assessoradas & Validade de Certidões (CNDs)</h2>
+                        <button v-if="isAdmin" @click="modalCliente = true" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
+                            <i class="fa-solid fa-plus"></i> Novo Cliente
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div v-if="clientes.length === 0" class="col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-500">
+                            Nenhum cliente cadastrado. Cadastre as empresas que a Barbosa Licitações assessora.
+                        </div>
+                        <div v-for="cli in clientes" :key="cli.id" class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-bold text-white text-base">{{ cli.razao_social }}</h3>
+                                    <p class="text-xs text-slate-400 font-mono">CNPJ: {{ cli.cnpj }} | CNAE: {{ cli.cnae_principal || 'N/I' }}</p>
+                                    <p class="text-xs text-slate-400 mt-0.5"><i class="fa-brands fa-whatsapp text-emerald-400"></i> {{ cli.contato || 'Sem contato' }}</p>
+                                </div>
+                                <button v-if="isAdmin" @click="excluirCliente(cli.id)" class="text-slate-500 hover:text-rose-500 text-sm">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
                             </div>
-                            <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
-                                <span class="text-slate-400">CND Estadual:</span>
-                                <span :class="statusValidade(cli.validade_cnd_estadual).classe" class="font-semibold">
-                                    {{ statusValidade(cli.validade_cnd_estadual).texto }}
-                                </span>
-                            </div>
-                            <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
-                                <span class="text-slate-400">FGTS (CRF):</span>
-                                <span :class="statusValidade(cli.validade_cnd_fgts).classe" class="font-semibold">
-                                    {{ statusValidade(cli.validade_cnd_fgts).texto }}
-                                </span>
-                            </div>
-                            <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
-                                <span class="text-slate-400">Trabalhista:</span>
-                                <span :class="statusValidade(cli.validade_cnd_trabalhista).classe" class="font-semibold">
-                                    {{ statusValidade(cli.validade_cnd_trabalhista).texto }}
-                                </span>
+
+                            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
+                                <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
+                                    <span class="text-slate-400">CND Federal:</span>
+                                    <span :class="statusValidade(cli.validade_cnd_federal).classe" class="font-semibold">
+                                        {{ statusValidade(cli.validade_cnd_federal).texto }}
+                                    </span>
+                                </div>
+                                <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
+                                    <span class="text-slate-400">CND Estadual:</span>
+                                    <span :class="statusValidade(cli.validade_cnd_estadual).classe" class="font-semibold">
+                                        {{ statusValidade(cli.validade_cnd_estadual).texto }}
+                                    </span>
+                                </div>
+                                <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
+                                    <span class="text-slate-400">FGTS (CRF):</span>
+                                    <span :class="statusValidade(cli.validade_cnd_fgts).classe" class="font-semibold">
+                                        {{ statusValidade(cli.validade_cnd_fgts).texto }}
+                                    </span>
+                                </div>
+                                <div class="p-2 rounded bg-slate-950 flex justify-between items-center">
+                                    <span class="text-slate-400">Trabalhista:</span>
+                                    <span :class="statusValidade(cli.validade_cnd_trabalhista).classe" class="font-semibold">
+                                        {{ statusValidade(cli.validade_cnd_trabalhista).texto }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <section v-if="abaAtiva === 'calculadora'" class="max-w-2xl mx-auto bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
-                <div>
-                    <h2 class="text-lg font-bold text-white">Calculadora Rápida de Lance Mínimo</h2>
-                    <p class="text-xs text-slate-400">Use durante o pregão ao vivo para saber o piso exato sem dar prejuízo ao cliente.</p>
-                </div>
+                <!-- Aba Calculadora -->
+                <section v-if="abaAtiva === 'calculadora'" class="max-w-2xl mx-auto bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Calculadora Rápida de Lance Mínimo</h2>
+                        <p class="text-xs text-slate-400">Use durante o pregão ao vivo para saber o piso exato sem dar prejuízo ao cliente.</p>
+                    </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <label class="block text-slate-400 mb-1">Custo do Produto/Serviço (R$)</label>
-                        <input type="number" v-model.number="calc.custo" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Custo do Produto/Serviço (R$)</label>
+                            <input type="number" v-model.number="calc.custo" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Frete / Logística (R$)</label>
+                            <input type="number" v-model.number="calc.frete" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Impostos (%)</label>
+                            <input type="number" v-model.number="calc.impostos" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Margem de Lucro Mínima (%)</label>
+                            <input type="number" v-model.number="calc.margem" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-slate-400 mb-1">Frete / Logística (R$)</label>
-                        <input type="number" v-model.number="calc.frete" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
-                    </div>
-                    <div>
-                        <label class="block text-slate-400 mb-1">Impostos (%)</label>
-                        <input type="number" v-model.number="calc.impostos" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
-                    </div>
-                    <div>
-                        <label class="block text-slate-400 mb-1">Margem de Lucro Mínima (%)</label>
-                        <input type="number" v-model.number="calc.margem" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
-                    </div>
-                </div>
 
-                <div class="bg-slate-950 border border-emerald-500/40 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <div>
-                        <span class="text-xs uppercase text-slate-400 font-semibold">Lance Mínimo Recomendado (Piso)</span>
-                        <div class="text-3xl font-bold text-emerald-400 mt-1">{{ formatarMoeda(lanceMinimoCalculado) }}</div>
+                    <div class="bg-slate-950 border border-emerald-500/40 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div>
+                            <span class="text-xs uppercase text-slate-400 font-semibold">Lance Mínimo Recomendado (Piso)</span>
+                            <div class="text-3xl font-bold text-emerald-400 mt-1">{{ formatarMoeda(lanceMinimoCalculado) }}</div>
+                        </div>
+                        <div class="text-right text-xs text-slate-400">
+                            <div>Custo Direto: {{ formatarMoeda(calc.custo + calc.frete) }}</div>
+                            <div>Deduções Totais: {{ (calc.impostos + calc.margem).toFixed(1) }}%</div>
+                        </div>
                     </div>
-                    <div class="text-right text-xs text-slate-400">
-                        <div>Custo Direto: {{ formatarMoeda(calc.custo + calc.frete) }}</div>
-                        <div>Deduções Totais: {{ (calc.impostos + calc.margem).toFixed(1) }}%</div>
-                    </div>
-                </div>
-            </section>
+                </section>
 
-        </main>
+                <!-- Aba Usuários (Apenas Admin) -->
+                <section v-if="abaAtiva === 'usuarios' && isAdmin" class="space-y-5">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-white">Criar Novo Usuário</h2>
+                            <p class="text-xs text-slate-400">
+                                Todo usuário criado recebe uma senha provisória e é obrigado a definir uma nova senha no primeiro login.
+                            </p>
+                        </div>
 
-        <!-- Modal Cadastro Cliente -->
-        <div v-if="modalCliente" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
-            <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 space-y-4">
-                <h3 class="text-lg font-bold text-white">Cadastrar Empresa Cliente</h3>
-                <div class="space-y-3 text-sm">
-                    <input v-model="novoCliente.razao_social" placeholder="Razão Social / Nome Fantasia *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    <div class="grid grid-cols-2 gap-3">
-                        <input v-model="novoCliente.cnpj" placeholder="CNPJ *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                        <input v-model="novoCliente.cnae_principal" placeholder="CNAE / Ramo" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    </div>
-                    <input v-model="novoCliente.contato" placeholder="Responsável / WhatsApp" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    
-                    <div class="pt-2 border-t border-slate-800">
-                        <p class="text-xs text-slate-400 mb-2 font-semibold">Validade das Certidões (CNDs — Calendário):</p>
-                        <div class="grid grid-cols-2 gap-3 text-xs">
+                        <form @submit.prevent="criarUsuario" class="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm items-end">
                             <div>
-                                <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Federal</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_federal" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
+                                <label class="block text-xs text-slate-400 mb-1">Nome *</label>
+                                <input v-model="novoUsuario.nome" required placeholder="Ex: Nathália"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
                             </div>
                             <div>
-                                <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Estadual</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_estadual" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
+                                <label class="block text-xs text-slate-400 mb-1">E-mail *</label>
+                                <input type="email" v-model="novoUsuario.email" required placeholder="nathalia@empresa.com"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
                             </div>
                             <div>
-                                <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> FGTS (CRF)</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_fgts" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
+                                <label class="block text-xs text-slate-400 mb-1">Senha Provisória (mín. 6) *</label>
+                                <input type="text" v-model="novoUsuario.senha_provisoria" required minlength="6" placeholder="Ex: Trocar@123"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
                             </div>
-                            <div>
-                                <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Trabalhista</label>
-                                <input type="date" v-model="novoCliente.validade_cnd_trabalhista" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
+                            <div class="flex gap-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs text-slate-400 mb-1">Perfil</label>
+                                    <select v-model="novoUsuario.perfil"
+                                        class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                        <option value="viewer">Visualizador</option>
+                                        <option value="admin">Administrador</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                                    Criar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[700px]">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-xs uppercase text-slate-400 bg-slate-900/70">
+                                    <th class="p-3.5">Nome</th>
+                                    <th class="p-3.5">E-mail</th>
+                                    <th class="p-3.5">Perfil</th>
+                                    <th class="p-3.5">Primeiro Acesso</th>
+                                    <th class="p-3.5">Status</th>
+                                    <th class="p-3.5 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-sm">
+                                <tr v-for="u in usuarios" :key="u.id" class="hover:bg-slate-800/40 transition">
+                                    <td class="p-3.5 font-medium text-white">{{ u.nome }}</td>
+                                    <td class="p-3.5 text-slate-300 font-mono text-xs">{{ u.email }}</td>
+                                    <td class="p-3.5">
+                                        <span :class="u.perfil === 'admin' ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-sky-950/70 text-sky-300 border-sky-500/40'"
+                                            class="px-2.5 py-0.5 rounded-full text-xs font-semibold border">
+                                            {{ u.perfil === 'admin' ? 'Administrador' : 'Visualizador' }}
+                                        </span>
+                                    </td>
+                                    <td class="p-3.5 text-xs">
+                                        <span v-if="u.precisa_trocar_senha" class="text-amber-300 font-medium">Aguarda troca de senha</span>
+                                        <span v-else class="text-slate-400">Senha definida</span>
+                                    </td>
+                                    <td class="p-3.5 text-xs">
+                                        <span :class="u.ativo ? 'text-emerald-400' : 'text-rose-400'" class="font-semibold">
+                                            {{ u.ativo ? 'Ativo' : 'Inativo' }}
+                                        </span>
+                                    </td>
+                                    <td class="p-3.5 text-right whitespace-nowrap space-x-2 text-xs">
+                                        <button @click="resetarSenhaUsuario(u)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 transition">
+                                            Resetar Senha
+                                        </button>
+                                        <button @click="alternarAtivoUsuario(u)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+                                            {{ u.ativo ? 'Desativar' : 'Ativar' }}
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </main>
+
+            <!-- Modal Cadastro Cliente -->
+            <div v-if="modalCliente && isAdmin" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+                <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 space-y-4">
+                    <h3 class="text-lg font-bold text-white">Cadastrar Empresa Cliente</h3>
+                    <div class="space-y-3 text-sm">
+                        <input v-model="novoCliente.razao_social" placeholder="Razão Social / Nome Fantasia *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
+                        <div class="grid grid-cols-2 gap-3">
+                            <input v-model="novoCliente.cnpj" placeholder="CNPJ *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
+                            <input v-model="novoCliente.cnae_principal" placeholder="CNAE / Ramo" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
+                        </div>
+                        <input v-model="novoCliente.contato" placeholder="Responsável / WhatsApp" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
+
+                        <div class="pt-2 border-t border-slate-800">
+                            <p class="text-xs text-slate-400 mb-2 font-semibold">Validade das Certidões (CNDs — Calendário):</p>
+                            <div class="grid grid-cols-2 gap-3 text-xs">
+                                <div>
+                                    <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Federal</label>
+                                    <input type="date" v-model="novoCliente.validade_cnd_federal" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Estadual</label>
+                                    <input type="date" v-model="novoCliente.validade_cnd_estadual" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> FGTS (CRF)</label>
+                                    <input type="date" v-model="novoCliente.validade_cnd_fgts" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 flex items-center gap-1"><i class="fa-regular fa-calendar text-emerald-400"></i> CND Trabalhista</label>
+                                    <input type="date" v-model="novoCliente.validade_cnd_trabalhista" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 mt-1" @click="$event.target.showPicker && $event.target.showPicker()">
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-2">
-                    <button @click="modalCliente = false" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-                    <button @click="salvarCliente" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Salvar Cliente</button>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button @click="modalCliente = false" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
+                        <button @click="salvarCliente" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Salvar Cliente</button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Modal Novo Edital -->
-        <div v-if="modalLicitacao" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 space-y-4 my-8">
-                <h3 class="text-lg font-bold text-white">Cadastrar Nova Licitação / Pregão</h3>
-                <div class="space-y-3 text-sm">
-                    <select v-model="novaLicitacao.cliente_id" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                        <option :value="null">Selecione o Cliente Assessorado *</option>
-                        <option v-for="c in clientes" :key="c.id" :value="c.id">{{ c.razao_social }}</option>
-                    </select>
-                    <input v-model="novaLicitacao.orgao" placeholder="Órgão Licitante (Ex: Pref. Municipal de Guaíba) *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input v-model="novaLicitacao.numero_edital" placeholder="Nº Edital (Ex: PE 045/2026) *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                        <input v-model="novaLicitacao.portal" placeholder="Portal (ComprasNet, BLL, Banrisul...)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-link text-sky-400"></i> Link do Edital (Site / Portal)</label>
-                        <input type="url" v-model="novaLicitacao.link_edital" placeholder="https://www.gov.br/compras/... ou portal do órgão"
-                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
-                    </div>
-                    <textarea v-model="novaLicitacao.objeto" rows="2" placeholder="Objeto resumido da licitação *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2"></textarea>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                        <div>
-                            <label class="text-xs text-amber-300 flex items-center gap-1.5 font-medium">
-                                <i class="fa-regular fa-calendar-check"></i> Data e Hora de Esclarecimento
-                            </label>
-                            <input type="datetime-local" v-model="novaLicitacao.data_esclarecimento"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
+            <!-- Modal Novo Edital -->
+            <div v-if="modalLicitacao && isAdmin" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 space-y-4 my-8">
+                    <h3 class="text-lg font-bold text-white">Cadastrar Nova Licitação / Pregão</h3>
+                    <div class="space-y-3 text-sm">
+                        <select v-model="novaLicitacao.cliente_id" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
+                            <option :value="null">Selecione o Cliente Assessorado *</option>
+                            <option v-for="c in clientes" :key="c.id" :value="c.id">{{ c.razao_social }}</option>
+                        </select>
+                        <input v-model="novaLicitacao.orgao" placeholder="Órgão Licitante (Ex: Pref. Municipal de Guaíba) *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input v-model="novaLicitacao.numero_edital" placeholder="Nº Edital (Ex: PE 045/2026) *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
+                            <input v-model="novaLicitacao.portal" placeholder="Portal (ComprasNet, BLL, Banrisul...)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2">
                         </div>
                         <div>
-                            <label class="text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
-                                <i class="fa-regular fa-calendar-days"></i> Data e Hora da Disputa
-                            </label>
-                            <input type="datetime-local" v-model="novaLicitacao.data_disputa"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
+                            <label class="text-xs text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-link text-sky-400"></i> Link do Edital (Site / Portal)</label>
+                            <input type="url" v-model="novaLicitacao.link_edital" placeholder="https://www.gov.br/compras/... ou portal do órgão"
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
                         </div>
-                    </div>
+                        <textarea v-model="novaLicitacao.objeto" rows="2" placeholder="Objeto resumido da licitação *" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2"></textarea>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs text-sky-300 font-medium">Valor de Referência do Edital (R$)</label>
-                            <input type="number" step="0.01" v-model="novaLicitacao.valor_referencia"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div>
+                                <label class="text-xs text-amber-300 flex items-center gap-1.5 font-medium">
+                                    <i class="fa-regular fa-calendar-check"></i> Data e Hora de Esclarecimento
+                                </label>
+                                <input type="datetime-local" v-model="novaLicitacao.data_esclarecimento"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                            <div>
+                                <label class="text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
+                                    <i class="fa-regular fa-calendar-days"></i> Data e Hora da Disputa
+                                </label>
+                                <input type="datetime-local" v-model="novaLicitacao.data_disputa"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
                         </div>
-                        <div>
-                            <label class="text-xs text-slate-400">Valor Estimado / Interno (R$)</label>
-                            <input type="number" step="0.01" v-model="novaLicitacao.valor_estimado"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-sky-300 font-medium">Valor de Referência do Edital (R$)</label>
+                                <input type="number" step="0.01" v-model="novaLicitacao.valor_referencia"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-400">Valor Estimado / Interno (R$)</label>
+                                <input type="number" step="0.01" v-model="novaLicitacao.valor_estimado"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-2">
-                    <button @click="modalLicitacao = false" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-                    <button @click="salvarLicitacao" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Cadastrar Edital</button>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button @click="modalLicitacao = false" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
+                        <button @click="salvarLicitacao" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Cadastrar Edital</button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Modal Editar / Resultado do Pregão -->
-        <div v-if="licitacaoEditando" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 space-y-4 my-8">
-                <h3 class="text-lg font-bold text-white">Editar Edital & Resultado do Pregão</h3>
-                <p class="text-xs text-slate-400">{{ licitacaoEditando.orgao }} — {{ licitacaoEditando.numero_edital }}</p>
-                <div class="space-y-3 text-sm">
-                    <div>
-                        <label class="text-xs text-slate-400">Link do Edital</label>
-                        <input type="url" v-model="licitacaoEditando.link_edital" placeholder="https://..."
-                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
+            <!-- Modal Editar / Resultado do Pregão -->
+            <div v-if="licitacaoEditando && isAdmin" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 space-y-4 my-8">
+                    <h3 class="text-lg font-bold text-white">Editar Edital & Resultado do Pregão</h3>
+                    <p class="text-xs text-slate-400">{{ licitacaoEditando.orgao }} — {{ licitacaoEditando.numero_edital }}</p>
+                    <div class="space-y-3 text-sm">
+                        <div>
+                            <label class="text-xs text-slate-400">Link do Edital</label>
+                            <input type="url" v-model="licitacaoEditando.link_edital" placeholder="https://..."
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-amber-300">Data e Hora de Esclarecimento</label>
+                                <input type="datetime-local" v-model="licitacaoEditando.data_esclarecimento"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                            <div>
+                                <label class="text-xs text-emerald-400">Data e Hora da Disputa</label>
+                                <input type="datetime-local" v-model="licitacaoEditando.data_disputa"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="text-xs text-sky-300">Valor Referência (R$)</label>
+                                <input type="number" step="0.01" v-model="licitacaoEditando.valor_referencia"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-400">Valor Estimado (R$)</label>
+                                <input type="number" step="0.01" v-model="licitacaoEditando.valor_estimado"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs text-emerald-400">Valor Arrematado (R$)</label>
+                                <input type="number" step="0.01" v-model="licitacaoEditando.valor_arrematado"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400">Observações (Lances, Recursos, Prazo de Entrega)</label>
+                            <textarea v-model="licitacaoEditando.observacoes" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1"></textarea>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs text-amber-300">Data e Hora de Esclarecimento</label>
-                            <input type="datetime-local" v-model="licitacaoEditando.data_esclarecimento"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
-                        </div>
-                        <div>
-                            <label class="text-xs text-emerald-400">Data e Hora da Disputa</label>
-                            <input type="datetime-local" v-model="licitacaoEditando.data_disputa"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1 text-xs" @click="$event.target.showPicker && $event.target.showPicker()">
-                        </div>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button @click="licitacaoEditando = null" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
+                        <button @click="salvarEdicaoValor" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Salvar Alterações</button>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                            <label class="text-xs text-sky-300">Valor Referência (R$)</label>
-                            <input type="number" step="0.01" v-model="licitacaoEditando.valor_referencia"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
-                        </div>
-                        <div>
-                            <label class="text-xs text-slate-400">Valor Estimado (R$)</label>
-                            <input type="number" step="0.01" v-model="licitacaoEditando.valor_estimado"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
-                        </div>
-                        <div>
-                            <label class="text-xs text-emerald-400">Valor Arrematado (R$)</label>
-                            <input type="number" step="0.01" v-model="licitacaoEditando.valor_arrematado"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 mt-1">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400">Observações (Lances, Recursos, Prazo de Entrega)</label>
-                        <textarea v-model="licitacaoEditando.observacoes" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1"></textarea>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-2">
-                    <button @click="licitacaoEditando = null" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-                    <button @click="salvarEdicaoValor" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">Salvar Alterações</button>
                 </div>
             </div>
-        </div>
+        </template>
 
     </div>
 
     <script>
         const { createApp } = Vue;
-        const STORAGE_KEY = 'barbosa_licitacoes_v1';
         const LOGO_STORAGE_KEY = 'barbosa_licitacoes_logo_v1';
-        const FALLBACK_SVG = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="64" viewBox="0 0 220 64"><rect width="220" height="64" rx="8" fill="#ffffff"/><text x="110" y="28" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="bold" fill="#064e3b">BARBOSA</text><text x="110" y="48" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#059669">LICITAÇÕES</text></svg>');
+        const FALLBACK_SVG = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" viewBox="0 0 240 80"><rect width="240" height="80" rx="12" fill="#ffffff"/><text x="120" y="36" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="#064e3b">BARBOSA</text><text x="120" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#059669">LICITAÇÕES</text></svg>');
 
         createApp({
             data() {
                 return {
-                    logoSrc: '../static/img/logo.jpeg',
+                    carregandoSessao: true,
+                    usuario: null,
+                    loginForm: { email: '', senha: '' },
+                    erroAuth: '',
+                    enviandoAuth: false,
+                    senhaForm: { novaSenha: '', confirmarSenha: '' },
+                    erroSenha: '',
+                    enviandoSenha: false,
+                    usuarios: [],
+                    novoUsuario: {
+                        nome: '',
+                        email: '',
+                        senha_provisoria: '',
+                        perfil: 'viewer'
+                    },
+                    logoSrc: '/static/img/logo.jpeg',
                     abaAtiva: 'licitacoes',
                     clientes: [],
                     licitacoes: [],
@@ -491,6 +710,9 @@
                 }
             },
             computed: {
+                isAdmin() {
+                    return this.usuario && this.usuario.perfil === 'admin';
+                },
                 temFiltroAtivo() {
                     return Boolean(
                         this.filtros.data ||
@@ -514,7 +736,7 @@
                         }
 
                         if (this.filtros.cliente && this.filtros.cliente.trim()) {
-                            const nomeCli = this.nomeCliente(lic.cliente_id).toLowerCase();
+                            const nomeCli = (lic.cliente_nome || this.nomeCliente(lic.cliente_id)).toLowerCase();
                             if (!nomeCli.includes(this.filtros.cliente.trim().toLowerCase())) {
                                 return false;
                             }
@@ -582,6 +804,157 @@
                 }
             },
             methods: {
+                async apiFetch(url, options = {}) {
+                    const resp = await fetch(url, {
+                        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+                        ...options
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (resp.status === 401) {
+                        this.usuario = null;
+                        throw new Error(data.error || 'Sessão expirada');
+                    }
+                    if (resp.status === 428 && data.precisa_trocar_senha) {
+                        if (this.usuario) this.usuario.precisa_trocar_senha = true;
+                        throw new Error(data.error || 'Troca de senha obrigatória');
+                    }
+                    if (!resp.ok) {
+                        throw new Error(data.error || 'Erro na requisição');
+                    }
+                    return data;
+                },
+                async verificarSessao() {
+                    this.carregandoSessao = true;
+                    try {
+                        const resp = await fetch('/api/auth/me');
+                        const data = await resp.json();
+                        this.usuario = data.authenticated ? data.user : null;
+                        if (this.usuario && !this.usuario.precisa_trocar_senha) {
+                            await this.carregarDadosSistema();
+                        }
+                    } catch (_) {
+                        this.usuario = null;
+                    } finally {
+                        this.carregandoSessao = false;
+                    }
+                },
+                async fazerLogin() {
+                    this.erroAuth = '';
+                    this.enviandoAuth = true;
+                    try {
+                        const data = await this.apiFetch('/api/auth/login', {
+                            method: 'POST',
+                            body: JSON.stringify(this.loginForm)
+                        });
+                        this.usuario = data.user;
+                        this.loginForm.senha = '';
+                        if (!this.usuario.precisa_trocar_senha) {
+                            await this.carregarDadosSistema();
+                        }
+                    } catch (err) {
+                        this.erroAuth = err.message;
+                    } finally {
+                        this.enviandoAuth = false;
+                    }
+                },
+                async salvarNovaSenha() {
+                    this.erroSenha = '';
+                    if (this.senhaForm.novaSenha !== this.senhaForm.confirmarSenha) {
+                        this.erroSenha = 'As senhas não conferem.';
+                        return;
+                    }
+                    this.enviandoSenha = true;
+                    try {
+                        await this.apiFetch('/api/auth/trocar-senha', {
+                            method: 'POST',
+                            body: JSON.stringify({ nova_senha: this.senhaForm.novaSenha })
+                        });
+                        this.usuario.precisa_trocar_senha = false;
+                        this.senhaForm = { novaSenha: '', confirmarSenha: '' };
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        this.erroSenha = err.message;
+                    } finally {
+                        this.enviandoSenha = false;
+                    }
+                },
+                async sair() {
+                    try {
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                    } catch (_) {}
+                    this.usuario = null;
+                    this.clientes = [];
+                    this.licitacoes = [];
+                    this.usuarios = [];
+                    this.abaAtiva = 'licitacoes';
+                },
+                async carregarDadosSistema() {
+                    const [cliData, licData] = await Promise.all([
+                        this.apiFetch('/api/clientes'),
+                        this.apiFetch('/api/licitacoes')
+                    ]);
+                    this.clientes = cliData || [];
+                    this.licitacoes = (licData || []).map(l => ({
+                        link_edital: '',
+                        data_esclarecimento: '',
+                        valor_referencia: 0,
+                        valor_estimado: 0,
+                        valor_arrematado: 0,
+                        ...l
+                    }));
+                    if (this.isAdmin) {
+                        await this.carregarUsuarios();
+                    }
+                },
+                async abrirAbaUsuarios() {
+                    this.abaAtiva = 'usuarios';
+                    await this.carregarUsuarios();
+                },
+                async carregarUsuarios() {
+                    try {
+                        this.usuarios = await this.apiFetch('/api/usuarios');
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async criarUsuario() {
+                    try {
+                        await this.apiFetch('/api/usuarios', {
+                            method: 'POST',
+                            body: JSON.stringify(this.novoUsuario)
+                        });
+                        this.novoUsuario = { nome: '', email: '', senha_provisoria: '', perfil: 'viewer' };
+                        await this.carregarUsuarios();
+                        alert('Usuário criado com senha provisória. Ele deverá trocar a senha no primeiro acesso.');
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async resetarSenhaUsuario(u) {
+                    const novaProv = prompt(`Digite uma nova senha provisória para ${u.nome} (mín. 6 caracteres):`, 'Barbosa@2026');
+                    if (!novaProv) return;
+                    try {
+                        await this.apiFetch(`/api/usuarios/${u.id}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({ resetar_senha: true, senha_provisoria: novaProv })
+                        });
+                        await this.carregarUsuarios();
+                        alert('Senha provisória redefinida. O usuário precisará trocá-la no próximo login.');
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async alternarAtivoUsuario(u) {
+                    try {
+                        await this.apiFetch(`/api/usuarios/${u.id}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({ ativo: !u.ativo })
+                        });
+                        await this.carregarUsuarios();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
                 estadoInicialLicitacao() {
                     return {
                         cliente_id: null,
@@ -642,95 +1015,117 @@
                     };
                     reader.readAsDataURL(file);
                 },
-                carregarStorage() {
-                    try {
-                        const raw = localStorage.getItem(STORAGE_KEY);
-                        if (raw) {
-                            const parsed = JSON.parse(raw);
-                            this.clientes = parsed.clientes || [];
-                            this.licitacoes = (parsed.licitacoes || []).map(l => ({
-                                link_edital: '',
-                                data_esclarecimento: '',
-                                valor_referencia: 0,
-                                ...l
-                            }));
-                        }
-                    } catch (e) {
-                        this.clientes = [];
-                        this.licitacoes = [];
-                    }
-                },
-                salvarStorage() {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                        clientes: this.clientes,
-                        licitacoes: this.licitacoes
-                    }));
-                },
                 nomeCliente(clienteId) {
                     const found = this.clientes.find(c => c.id === clienteId);
                     return found ? found.razao_social : 'Cliente não vinculado';
                 },
-                salvarCliente() {
+                async salvarCliente() {
                     if (!this.novoCliente.razao_social || !this.novoCliente.cnpj) {
                         alert('Preencha Razão Social e CNPJ.');
                         return;
                     }
-                    this.clientes.push({
-                        id: Date.now(),
-                        ...this.novoCliente
-                    });
-                    this.salvarStorage();
-                    this.novoCliente = { razao_social: '', cnpj: '', cnae_principal: '', contato: '', validade_cnd_federal: '', validade_cnd_estadual: '', validade_cnd_fgts: '', validade_cnd_trabalhista: '' };
-                    this.modalCliente = false;
+                    try {
+                        await this.apiFetch('/api/clientes', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                id: Date.now(),
+                                ...this.novoCliente
+                            })
+                        });
+                        this.novoCliente = { razao_social: '', cnpj: '', cnae_principal: '', contato: '', validade_cnd_federal: '', validade_cnd_estadual: '', validade_cnd_fgts: '', validade_cnd_trabalhista: '' };
+                        this.modalCliente = false;
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        alert(err.message);
+                    }
                 },
-                excluirCliente(id) {
+                async excluirCliente(id) {
                     if (!confirm('Remover este cliente?')) return;
-                    this.clientes = this.clientes.filter(c => c.id !== id);
-                    this.salvarStorage();
+                    try {
+                        await this.apiFetch(`/api/clientes/${id}`, { method: 'DELETE' });
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        alert(err.message);
+                    }
                 },
-                salvarLicitacao() {
+                async salvarLicitacao() {
                     if (!this.novaLicitacao.orgao || !this.novaLicitacao.numero_edital) {
                         alert('Preencha Órgão e Número do Edital.');
                         return;
                     }
-                    this.licitacoes.push({
-                        id: Date.now(),
-                        ...this.novaLicitacao,
-                        link_edital: (this.novaLicitacao.link_edital || '').trim(),
-                        valor_referencia: parseFloat(this.novaLicitacao.valor_referencia) || 0,
-                        valor_estimado: parseFloat(this.novaLicitacao.valor_estimado) || 0,
-                        valor_arrematado: 0,
-                        status: 'Analisando Edital',
-                        observacoes: ''
-                    });
-                    this.salvarStorage();
-                    this.novaLicitacao = this.estadoInicialLicitacao();
-                    this.modalLicitacao = false;
+                    try {
+                        await this.apiFetch('/api/licitacoes', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                id: Date.now(),
+                                ...this.novaLicitacao,
+                                link_edital: (this.novaLicitacao.link_edital || '').trim(),
+                                valor_referencia: parseFloat(this.novaLicitacao.valor_referencia) || 0,
+                                valor_estimado: parseFloat(this.novaLicitacao.valor_estimado) || 0,
+                                valor_arrematado: 0,
+                                status: 'Analisando Edital',
+                                observacoes: ''
+                            })
+                        });
+                        this.novaLicitacao = this.estadoInicialLicitacao();
+                        this.modalLicitacao = false;
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async atualizarStatusLicitacao(lic) {
+                    try {
+                        await this.apiFetch(`/api/licitacoes/${lic.id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                link_edital: lic.link_edital || '',
+                                data_esclarecimento: lic.data_esclarecimento || '',
+                                data_disputa: lic.data_disputa || '',
+                                valor_referencia: parseFloat(lic.valor_referencia) || 0,
+                                valor_estimado: parseFloat(lic.valor_estimado) || 0,
+                                valor_arrematado: parseFloat(lic.valor_arrematado) || 0,
+                                status: lic.status,
+                                observacoes: lic.observacoes || ''
+                            })
+                        });
+                    } catch (err) {
+                        alert(err.message);
+                        await this.carregarDadosSistema();
+                    }
                 },
                 abrirEdicaoValor(lic) {
                     this.licitacaoEditando = { ...lic };
                 },
-                salvarEdicaoValor() {
-                    const idx = this.licitacoes.findIndex(l => l.id === this.licitacaoEditando.id);
-                    if (idx !== -1) {
-                        this.licitacoes[idx] = {
-                            ...this.licitacoes[idx],
-                            link_edital: (this.licitacaoEditando.link_edital || '').trim(),
-                            data_esclarecimento: this.licitacaoEditando.data_esclarecimento || '',
-                            data_disputa: this.licitacaoEditando.data_disputa || '',
-                            valor_referencia: parseFloat(this.licitacaoEditando.valor_referencia) || 0,
-                            valor_estimado: parseFloat(this.licitacaoEditando.valor_estimado) || 0,
-                            valor_arrematado: parseFloat(this.licitacaoEditando.valor_arrematado) || 0,
-                            observacoes: this.licitacaoEditando.observacoes || ''
-                        };
-                        this.salvarStorage();
+                async salvarEdicaoValor() {
+                    try {
+                        await this.apiFetch(`/api/licitacoes/${this.licitacaoEditando.id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                link_edital: (this.licitacaoEditando.link_edital || '').trim(),
+                                data_esclarecimento: this.licitacaoEditando.data_esclarecimento || '',
+                                data_disputa: this.licitacaoEditando.data_disputa || '',
+                                valor_referencia: parseFloat(this.licitacaoEditando.valor_referencia) || 0,
+                                valor_estimado: parseFloat(this.licitacaoEditando.valor_estimado) || 0,
+                                valor_arrematado: parseFloat(this.licitacaoEditando.valor_arrematado) || 0,
+                                status: this.licitacaoEditando.status || 'Analisando Edital',
+                                observacoes: this.licitacaoEditando.observacoes || ''
+                            })
+                        });
+                        this.licitacaoEditando = null;
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        alert(err.message);
                     }
-                    this.licitacaoEditando = null;
                 },
-                excluirLicitacao(id) {
+                async excluirLicitacao(id) {
                     if (!confirm('Excluir este edital?')) return;
-                    this.licitacoes = this.licitacoes.filter(l => l.id !== id);
-                    this.salvarStorage();
+                    try {
+                        await this.apiFetch(`/api/licitacoes/${id}`, { method: 'DELETE' });
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        alert(err.message);
+                    }
                 },
                 formatarMoeda(valor) {
                     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
@@ -780,7 +1175,7 @@
             },
             mounted() {
                 this.carregarLogoSalva();
-                this.carregarStorage();
+                this.verificarSessao();
             }
         }).mount('#app');
     </script>

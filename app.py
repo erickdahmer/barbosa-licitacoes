@@ -1,6 +1,8 @@
 import os
 import sqlite3
-from flask import Flask, render_template, request, jsonify
+from functools import wraps
+from flask import Flask, render_template, request, jsonify, session
+from werkzeug.security import generate_password_hash, check_password_hash
 
 try:
     import psycopg
@@ -19,8 +21,18 @@ app = Flask(__name__)
 app.jinja_options['variable_start_string'] = '[['
 app.jinja_options['variable_end_string'] = ']]'
 
+app.secret_key = os.environ.get('SECRET_KEY', 'barbosa-licitacoes-dev-secret-change-in-prod')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+if os.environ.get('RENDER') or os.environ.get('FORCE_HTTPS') == '1':
+    app.config['SESSION_COOKIE_SECURE'] = True
+
 DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
 DB_PATH = os.path.join(os.path.dirname(__file__), 'barbosa_licitacoes.db')
+
+INITIAL_ADMIN_EMAIL = os.environ.get('ADMIN_INITIAL_EMAIL', 'erickdahmerrh@gmail.com').strip().lower()
+INITIAL_ADMIN_PASSWORD = os.environ.get('ADMIN_INITIAL_PASSWORD', 'Barbosa@2026')
+INITIAL_ADMIN_NAME = os.environ.get('ADMIN_INITIAL_NAME', 'Erick Dahmer')
 
 
 def is_postgres():
@@ -79,6 +91,29 @@ def _garantir_colunas_licitacoes(conn):
             conn.rollback()
 
 
+def _garantir_usuario_inicial(conn):
+    if not INITIAL_ADMIN_EMAIL:
+        return
+    row = conn.execute(
+        'SELECT id FROM usuarios WHERE LOWER(email) = LOWER(?)',
+        (INITIAL_ADMIN_EMAIL,)
+    ).fetchone()
+    if not row:
+        senha_hash = generate_password_hash(INITIAL_ADMIN_PASSWORD)
+        if is_postgres():
+            conn.execute('''
+                INSERT INTO usuarios (nome, email, senha_hash, perfil, precisa_trocar_senha, ativo)
+                VALUES (?, ?, ?, 'admin', TRUE, TRUE)
+                ON CONFLICT (email) DO NOTHING
+            ''', (INITIAL_ADMIN_NAME, INITIAL_ADMIN_EMAIL, senha_hash))
+        else:
+            conn.execute('''
+                INSERT OR IGNORE INTO usuarios (nome, email, senha_hash, perfil, precisa_trocar_senha, ativo)
+                VALUES (?, ?, ?, 'admin', 1, 1)
+            ''', (INITIAL_ADMIN_NAME, INITIAL_ADMIN_EMAIL, senha_hash))
+        conn.commit()
+
+
 def init_db():
     conn = get_db_connection()
     try:
@@ -114,6 +149,17 @@ def init_db():
                     observacoes TEXT
                 )
             ''')
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id BIGSERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    email TEXT NOT NULL UNIQUE,
+                    senha_hash TEXT NOT NULL,
+                    perfil TEXT NOT NULL DEFAULT 'viewer',
+                    precisa_trocar_senha BOOLEAN NOT NULL DEFAULT TRUE,
+                    ativo BOOLEAN NOT NULL DEFAULT TRUE
+                )
+            ''')
         else:
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS clientes (
@@ -147,8 +193,20 @@ def init_db():
                     FOREIGN KEY (cliente_id) REFERENCES clientes (id)
                 )
             ''')
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    email TEXT NOT NULL UNIQUE,
+                    senha_hash TEXT NOT NULL,
+                    perfil TEXT NOT NULL DEFAULT 'viewer',
+                    precisa_trocar_senha INTEGER NOT NULL DEFAULT 1,
+                    ativo INTEGER NOT NULL DEFAULT 1
+                )
+            ''')
         conn.commit()
         _garantir_colunas_licitacoes(conn)
+        _garantir_usuario_inicial(conn)
     finally:
         conn.close()
 
@@ -156,13 +214,231 @@ def init_db():
 init_db()
 
 
+def _usuario_atual():
+    user_id = session.get('user_id')
+    if not user_id:
+        return None
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT id, nome, email, perfil, precisa_trocar_senha, ativo FROM usuarios WHERE id = ?',
+            (user_id,)
+        ).fetchone()
+        if not row or not bool(row['ativo']):
+            session.clear()
+            return None
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = _usuario_atual()
+        if not user:
+            return jsonify({'error': 'Não autenticado'}), 401
+        if bool(user.get('precisa_trocar_senha')) and request.endpoint != 'trocar_senha':
+            return jsonify({'error': 'Troca de senha obrigatória no primeiro acesso', 'precisa_trocar_senha': True}), 428
+        request.current_user = user
+        return f(*args, **kwargs)
+    return decorated
+
+
+def admin_required(f):
+    @wraps(f)
+    @login_required
+    def decorated(*args, **kwargs):
+        if request.current_user.get('perfil') != 'admin':
+            return jsonify({'error': 'Acesso restrito a administradores'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.json or {}
+    email = (data.get('email') or '').strip().lower()
+    senha = data.get('senha') or ''
+    if not email or not senha:
+        return jsonify({'error': 'Informe e-mail e senha'}), 400
+
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT id, nome, email, senha_hash, perfil, precisa_trocar_senha, ativo FROM usuarios WHERE LOWER(email) = ?',
+            (email,)
+        ).fetchone()
+        if not row or not bool(row['ativo']) or not check_password_hash(row['senha_hash'], senha):
+            return jsonify({'error': 'E-mail ou senha inválidos'}), 401
+
+        session.clear()
+        session['user_id'] = row['id']
+        return jsonify({
+            'user': {
+                'id': row['id'],
+                'nome': row['nome'],
+                'email': row['email'],
+                'perfil': row['perfil'],
+                'precisa_trocar_senha': bool(row['precisa_trocar_senha'])
+            }
+        })
+    finally:
+        conn.close()
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'status': 'logged_out'})
+
+
+@app.route('/api/auth/me', methods=['GET'])
+def me():
+    user = _usuario_atual()
+    if not user:
+        return jsonify({'authenticated': False, 'user': None}), 200
+    return jsonify({
+        'authenticated': True,
+        'user': {
+            'id': user['id'],
+            'nome': user['nome'],
+            'email': user['email'],
+            'perfil': user['perfil'],
+            'precisa_trocar_senha': bool(user.get('precisa_trocar_senha'))
+        }
+    })
+
+
+@app.route('/api/auth/trocar-senha', methods=['POST'])
+@login_required
+def trocar_senha():
+    data = request.json or {}
+    nova_senha = data.get('nova_senha') or ''
+    if len(nova_senha) < 6:
+        return jsonify({'error': 'A nova senha deve ter pelo menos 6 caracteres'}), 400
+
+    senha_hash = generate_password_hash(nova_senha)
+    conn = get_db_connection()
+    try:
+        if is_postgres():
+            conn.execute(
+                'UPDATE usuarios SET senha_hash = ?, precisa_trocar_senha = FALSE WHERE id = ?',
+                (senha_hash, request.current_user['id'])
+            )
+        else:
+            conn.execute(
+                'UPDATE usuarios SET senha_hash = ?, precisa_trocar_senha = 0 WHERE id = ?',
+                (senha_hash, request.current_user['id'])
+            )
+        conn.commit()
+        return jsonify({'status': 'password_updated', 'precisa_trocar_senha': False})
+    finally:
+        conn.close()
+
+
+@app.route('/api/usuarios', methods=['GET', 'POST'])
+@admin_required
+def handle_usuarios():
+    conn = get_db_connection()
+    try:
+        if request.method == 'GET':
+            rows = conn.execute(
+                'SELECT id, nome, email, perfil, precisa_trocar_senha, ativo FROM usuarios ORDER BY nome'
+            ).fetchall()
+            return jsonify([
+                {
+                    'id': r['id'],
+                    'nome': r['nome'],
+                    'email': r['email'],
+                    'perfil': r['perfil'],
+                    'precisa_trocar_senha': bool(r['precisa_trocar_senha']),
+                    'ativo': bool(r['ativo'])
+                }
+                for r in rows
+            ])
+
+        if request.method == 'POST':
+            data = request.json or {}
+            nome = (data.get('nome') or '').strip()
+            email = (data.get('email') or '').strip().lower()
+            senha_provisoria = data.get('senha_provisoria') or ''
+            perfil = data.get('perfil') if data.get('perfil') in ('admin', 'viewer') else 'viewer'
+
+            if not nome or not email or len(senha_provisoria) < 6:
+                return jsonify({'error': 'Preencha nome, e-mail e senha provisória (mín. 6 caracteres)'}), 400
+
+            existente = conn.execute('SELECT id FROM usuarios WHERE LOWER(email) = ?', (email,)).fetchone()
+            if existente:
+                return jsonify({'error': 'Já existe um usuário com este e-mail'}), 409
+
+            senha_hash = generate_password_hash(senha_provisoria)
+            if is_postgres():
+                conn.execute('''
+                    INSERT INTO usuarios (nome, email, senha_hash, perfil, precisa_trocar_senha, ativo)
+                    VALUES (?, ?, ?, ?, TRUE, TRUE)
+                ''', (nome, email, senha_hash, perfil))
+            else:
+                conn.execute('''
+                    INSERT INTO usuarios (nome, email, senha_hash, perfil, precisa_trocar_senha, ativo)
+                    VALUES (?, ?, ?, ?, 1, 1)
+                ''', (nome, email, senha_hash, perfil))
+            conn.commit()
+            return jsonify({'status': 'created'}), 201
+    finally:
+        conn.close()
+
+
+@app.route('/api/usuarios/<int:user_id>', methods=['PATCH'])
+@admin_required
+def atualizar_usuario(user_id):
+    data = request.json or {}
+    conn = get_db_connection()
+    try:
+        row = conn.execute('SELECT id, ativo FROM usuarios WHERE id = ?', (user_id,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Usuário não encontrado'}), 404
+
+        if 'ativo' in data:
+            novo_ativo = bool(data['ativo'])
+            if is_postgres():
+                conn.execute('UPDATE usuarios SET ativo = ? WHERE id = ?', (novo_ativo, user_id))
+            else:
+                conn.execute('UPDATE usuarios SET ativo = ? WHERE id = ?', (1 if novo_ativo else 0, user_id))
+
+        if data.get('resetar_senha'):
+            nova_prov = data.get('senha_provisoria') or 'Barbosa@2026'
+            if len(nova_prov) < 6:
+                return jsonify({'error': 'Senha provisória deve ter pelo menos 6 caracteres'}), 400
+            senha_hash = generate_password_hash(nova_prov)
+            if is_postgres():
+                conn.execute(
+                    'UPDATE usuarios SET senha_hash = ?, precisa_trocar_senha = TRUE WHERE id = ?',
+                    (senha_hash, user_id)
+                )
+            else:
+                conn.execute(
+                    'UPDATE usuarios SET senha_hash = ?, precisa_trocar_senha = 1 WHERE id = ?',
+                    (senha_hash, user_id)
+                )
+
+        conn.commit()
+        return jsonify({'status': 'updated'})
+    finally:
+        conn.close()
+
+
 @app.route('/api/clientes', methods=['GET', 'POST'])
+@login_required
 def handle_clientes():
+    if request.method == 'POST' and request.current_user.get('perfil') != 'admin':
+        return jsonify({'error': 'Apenas administradores podem cadastrar/editar clientes'}), 403
+
     conn = get_db_connection()
     try:
         if request.method == 'GET':
@@ -214,6 +490,7 @@ def handle_clientes():
 
 
 @app.route('/api/clientes/<int:id>', methods=['DELETE'])
+@admin_required
 def delete_cliente(id):
     conn = get_db_connection()
     try:
@@ -225,7 +502,11 @@ def delete_cliente(id):
 
 
 @app.route('/api/licitacoes', methods=['GET', 'POST'])
+@login_required
 def handle_licitacoes():
+    if request.method == 'POST' and request.current_user.get('perfil') != 'admin':
+        return jsonify({'error': 'Apenas administradores podem cadastrar/editar licitações'}), 403
+
     conn = get_db_connection()
     try:
         if request.method == 'GET':
@@ -305,6 +586,7 @@ def handle_licitacoes():
 
 
 @app.route('/api/licitacoes/<int:id>', methods=['PUT', 'DELETE'])
+@admin_required
 def update_delete_licitacao(id):
     conn = get_db_connection()
     try:
