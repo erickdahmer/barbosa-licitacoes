@@ -14,7 +14,7 @@
         <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-4">
                 <label title="Clique para carregar ou trocar a logo" class="h-16 px-3 rounded-xl bg-white border border-emerald-500/40 flex items-center justify-center overflow-hidden shadow-md cursor-pointer hover:border-emerald-400 transition">
-                    <img :src="logoSrc" @error="onLogoError" alt="Barbosa Licitações" class="h-14 w-auto object-contain">
+                    <img :src="'/static/img/logo.jpeg'" @error="onLogoError" alt="Barbosa Licitações" class="h-14 w-auto object-contain">
                     <input type="file" accept="image/*" @change="carregarLogoLocal" class="hidden">
                 </label>
                 <div>
