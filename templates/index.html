@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Barbosa Licitações | Assessoria e Gestão em Licitações Públicas</title>
+    <title>Barbosa Licitações | Assessoria, Licitações e Produções Culturais</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -22,7 +22,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white">Barbosa Licitações</h1>
                         <p class="text-xs text-emerald-400 font-semibold uppercase tracking-wider mt-0.5">
-                            Assessoria e Gestão em Licitações Públicas
+                            Assessoria, Licitações Públicas & Produções Culturais
                         </p>
                     </div>
                 </div>
@@ -100,52 +100,85 @@
 
         <!-- Sistema Principal -->
         <template v-else-if="!carregandoSessao && usuario">
-            <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center gap-4">
-                    <label title="Clique para carregar ou trocar a logo" class="h-16 px-3 rounded-xl bg-white border border-emerald-500/40 flex items-center justify-center overflow-hidden shadow-md cursor-pointer hover:border-emerald-400 transition">
-                        <img :src="logoSrc" @error="onLogoError" alt="Barbosa Licitações" class="h-14 w-auto object-contain">
-                        <input type="file" accept="image/*" @change="carregarLogoLocal" class="hidden">
-                    </label>
-                    <div>
-                        <h1 class="text-2xl font-bold tracking-tight text-white">Barbosa Licitações</h1>
-                        <p class="text-xs text-emerald-400 font-medium">Assessoria e Gestão em Licitações Públicas</p>
+            <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <label title="Clique para carregar ou trocar a logo" class="h-16 px-3 rounded-xl bg-white border border-emerald-500/40 flex items-center justify-center overflow-hidden shadow-md cursor-pointer hover:border-emerald-400 transition">
+                            <img :src="logoSrc" @error="onLogoError" alt="Barbosa Licitações" class="h-14 w-auto object-contain">
+                            <input type="file" accept="image/*" @change="carregarLogoLocal" class="hidden">
+                        </label>
+                        <div>
+                            <h1 class="text-2xl font-bold tracking-tight text-white">Barbosa Licitações</h1>
+                            <p class="text-xs text-emerald-400 font-medium">Assessoria, Licitações Públicas & Produções Culturais</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Abas Principais dos Módulos -->
+                        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1">
+                            <button v-if="podeAcessarLicitacoes" @click="selecionarModuloPrincipal('licitacoes')"
+                                :class="moduloPrincipal === 'licitacoes' && abaAtiva !== 'usuarios' ? 'bg-emerald-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-white'"
+                                class="px-4 py-2 rounded-lg text-sm transition flex items-center gap-2">
+                                <i class="fa-solid fa-gavel"></i> Licitações
+                            </button>
+                            <button v-if="podeAcessarCultural" @click="selecionarModuloPrincipal('cultural')"
+                                :class="moduloPrincipal === 'cultural' && abaAtiva !== 'usuarios' ? 'bg-amber-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-white'"
+                                class="px-4 py-2 rounded-lg text-sm transition flex items-center gap-2">
+                                <i class="fa-solid fa-masks-theater"></i> Produções Culturais
+                            </button>
+                            <button v-if="isAdmin" @click="abrirAbaUsuarios"
+                                :class="abaAtiva === 'usuarios' ? 'bg-sky-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-white'"
+                                class="px-4 py-2 rounded-lg text-sm transition flex items-center gap-2">
+                                <i class="fa-solid fa-users-gear"></i> Admin
+                            </button>
+                        </div>
+
+                        <div class="flex items-center gap-2.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
+                            <div class="text-right">
+                                <div class="font-semibold text-white">{{ usuario.nome }}</div>
+                                <div :class="isAdmin ? 'text-emerald-400' : 'text-sky-400'" class="uppercase text-[10px] font-bold">
+                                    {{ isAdmin ? 'Administrador' : 'Somente Visualização' }}
+                                </div>
+                            </div>
+                            <button @click="sair" title="Sair" class="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-900 transition">
+                                <i class="fa-solid fa-right-from-bracket"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-3">
-                    <nav class="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <!-- Sub-navegação interna do módulo ativo -->
+                <div v-if="abaAtiva !== 'usuarios'" class="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-800/70">
+                    <nav v-if="moduloPrincipal === 'licitacoes' && podeAcessarLicitacoes" class="flex flex-wrap bg-slate-950 p-1 rounded-lg border border-slate-800">
                         <button @click="abaAtiva = 'licitacoes'"
                             :class="abaAtiva === 'licitacoes' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                            class="px-3.5 py-2 rounded-md text-sm transition flex items-center gap-2">
-                            <i class="fa-solid fa-gavel"></i> Pregões & Editais
+                            class="px-3.5 py-1.5 rounded-md text-xs transition flex items-center gap-2">
+                            <i class="fa-solid fa-file-contract"></i> Pregões & Editais
                         </button>
                         <button @click="abaAtiva = 'clientes'"
                             :class="abaAtiva === 'clientes' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                            class="px-3.5 py-2 rounded-md text-sm transition flex items-center gap-2">
+                            class="px-3.5 py-1.5 rounded-md text-xs transition flex items-center gap-2">
                             <i class="fa-solid fa-building"></i> Clientes & CNDs
                         </button>
                         <button @click="abaAtiva = 'calculadora'"
                             :class="abaAtiva === 'calculadora' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                            class="px-3.5 py-2 rounded-md text-sm transition flex items-center gap-2">
+                            class="px-3.5 py-1.5 rounded-md text-xs transition flex items-center gap-2">
                             <i class="fa-solid fa-calculator"></i> Calculadora
-                        </button>
-                        <button v-if="isAdmin" @click="abrirAbaUsuarios"
-                            :class="abaAtiva === 'usuarios' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
-                            class="px-3.5 py-2 rounded-md text-sm transition flex items-center gap-2">
-                            <i class="fa-solid fa-users-gear"></i> Usuários
                         </button>
                     </nav>
 
-                    <div class="flex items-center gap-2.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
-                        <div class="text-right">
-                            <div class="font-semibold text-white">{{ usuario.nome }}</div>
-                            <div :class="isAdmin ? 'text-emerald-400' : 'text-sky-400'" class="uppercase text-[10px] font-bold">
-                                {{ isAdmin ? 'Administrador' : 'Somente Visualização' }}
-                            </div>
-                        </div>
-                        <button @click="sair" title="Sair" class="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-900 transition">
-                            <i class="fa-solid fa-right-from-bracket"></i>
+                    <nav v-if="moduloPrincipal === 'cultural' && podeAcessarCultural" class="flex flex-wrap bg-slate-950 p-1 rounded-lg border border-slate-800">
+                        <button @click="abaAtiva = 'cultural'"
+                            :class="abaAtiva === 'cultural' ? 'bg-amber-600 text-white font-semibold' : 'text-slate-400 hover:text-white'"
+                            class="px-3.5 py-1.5 rounded-md text-xs transition flex items-center gap-2">
+                            <i class="fa-solid fa-clapperboard"></i> Projetos Culturais & Editais
                         </button>
+                    </nav>
+
+                    <div class="text-[11px] text-slate-400">
+                        Módulo ativo:
+                        <strong v-if="moduloPrincipal === 'licitacoes'" class="text-emerald-400">Licitações Públicas</strong>
+                        <strong v-else class="text-amber-400">Produções Culturais (RS)</strong>
                     </div>
                 </div>
             </header>
@@ -154,10 +187,11 @@
 
                 <div v-if="!isAdmin" class="bg-sky-950/40 border border-sky-500/30 text-sky-200 rounded-xl px-4 py-2.5 text-xs flex items-center gap-2">
                     <i class="fa-solid fa-eye text-sky-400"></i>
-                    <span>Você está conectado em modo de <strong>visualização</strong>. Para cadastrar, editar ou excluir registros, fale com um administrador.</span>
+                    <span>Você está conectado em modo de <strong>visualização</strong>. Para cadastrar, editar, enviar arquivos ou excluir registros, fale com um administrador.</span>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- INDICADORES DE LICITAÇÕES -->
+                <div v-if="abaAtiva !== 'usuarios' && moduloPrincipal === 'licitacoes' && podeAcessarLicitacoes" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
                         <div class="text-slate-400 text-xs uppercase font-semibold">Editais Ativos</div>
                         <div class="text-3xl font-bold text-white mt-1">{{ licitacoesAtivas }}</div>
@@ -182,8 +216,36 @@
                     </div>
                 </div>
 
-                <!-- Aba Pregões & Editais -->
-                <section v-if="abaAtiva === 'licitacoes'" class="space-y-4">
+                <!-- INDICADORES DE PRODUÇÕES CULTURAIS -->
+                <div v-if="abaAtiva !== 'usuarios' && moduloPrincipal === 'cultural' && podeAcessarCultural" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-amber-500/25 rounded-xl p-5">
+                        <div class="text-amber-300/90 text-xs uppercase font-semibold">Projetos Culturais Ativos</div>
+                        <div class="text-3xl font-bold text-white mt-1">{{ projetosCulturaisAtivos }}</div>
+                        <div class="text-xs text-slate-500 mt-1">Inscrição, seleção, execução ou contas</div>
+                    </div>
+                    <div class="bg-slate-900 border border-amber-500/25 rounded-xl p-5">
+                        <div class="text-amber-300/90 text-xs uppercase font-semibold">Total Contemplado</div>
+                        <div class="text-2xl font-bold text-amber-400 mt-1">{{ formatarMoeda(totalContempladoCultural) }}</div>
+                        <div class="text-xs text-slate-500 mt-1">Projetos contemplados / em execução</div>
+                    </div>
+                    <div class="bg-slate-900 border border-amber-500/25 rounded-xl p-5">
+                        <div class="text-amber-300/90 text-xs uppercase font-semibold">Prazos de Edital (10d)</div>
+                        <div class="text-3xl font-bold mt-1" :class="alertasPrazosCulturais > 0 ? 'text-amber-400' : 'text-emerald-400'">
+                            {{ alertasPrazosCulturais }}
+                        </div>
+                        <div class="text-xs text-slate-500 mt-1">Inscrição, recurso ou conclusão</div>
+                    </div>
+                    <div class="bg-slate-900 border border-amber-500/25 rounded-xl p-5">
+                        <div class="text-amber-300/90 text-xs uppercase font-semibold">Alertas de Habilitação</div>
+                        <div class="text-3xl font-bold mt-1" :class="alertasHabilitacaoCultural > 0 ? 'text-rose-500' : 'text-emerald-400'">
+                            {{ alertasHabilitacaoCultural }}
+                        </div>
+                        <div class="text-xs text-slate-500 mt-1">Certidões vencidas ou em até 10 dias</div>
+                    </div>
+                </div>
+
+                <!-- ==================== ABA PREGÕES & EDITAIS ==================== -->
+                <section v-if="abaAtiva === 'licitacoes' && podeAcessarLicitacoes" class="space-y-4">
                     <div class="flex flex-wrap justify-between items-center gap-4">
                         <div class="flex flex-wrap items-center gap-3">
                             <h2 class="text-lg font-bold text-white">Controle de Pregões e Editais</h2>
@@ -312,8 +374,8 @@
                     </div>
                 </section>
 
-                <!-- Aba Clientes & CNDs -->
-                <section v-if="abaAtiva === 'clientes'" class="space-y-4">
+                <!-- ==================== ABA CLIENTES & CNDs ==================== -->
+                <section v-if="abaAtiva === 'clientes' && podeAcessarLicitacoes" class="space-y-4">
                     <div class="flex justify-between items-center">
                         <h2 class="text-lg font-bold text-white">Empresas Assessoradas & Validade de Certidões (CNDs)</h2>
                         <button v-if="isAdmin" @click="modalCliente = true" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
@@ -367,8 +429,8 @@
                     </div>
                 </section>
 
-                <!-- Aba Calculadora -->
-                <section v-if="abaAtiva === 'calculadora'" class="max-w-2xl mx-auto bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
+                <!-- ==================== ABA CALCULADORA ==================== -->
+                <section v-if="abaAtiva === 'calculadora' && podeAcessarLicitacoes" class="max-w-2xl mx-auto bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
                     <div>
                         <h2 class="text-lg font-bold text-white">Calculadora Rápida de Lance Mínimo</h2>
                         <p class="text-xs text-slate-400">Use durante o pregão ao vivo para saber o piso exato sem dar prejuízo ao cliente.</p>
@@ -405,55 +467,184 @@
                     </div>
                 </section>
 
-                <!-- Aba Usuários (Apenas Admin) -->
+                <!-- ==================== ABA PRODUÇÕES CULTURAIS ==================== -->
+                <section v-if="abaAtiva === 'cultural' && podeAcessarCultural" class="space-y-5">
+                    <div class="flex flex-wrap justify-between items-center gap-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-masks-theater text-amber-400"></i>
+                                Produções Culturais — Editais, Municípios RS, Custos e Prestação de Contas
+                            </h2>
+                            <p class="text-xs text-slate-400">
+                                Gestão completa de editais culturais, prazos, municípios do RS (497), habilitação, planilha de custos, cronograma e prestação de contas.
+                            </p>
+                        </div>
+                        <button v-if="isAdmin" @click="abrirModalNovoProjetoCultural"
+                            class="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
+                            <i class="fa-solid fa-plus"></i> Novo Projeto Cultural
+                        </button>
+                    </div>
+
+                    <!-- Filtros rápidos Produções Culturais -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Buscar Projeto / Edital / Proponente</label>
+                            <input v-model="filtrosCulturais.busca" placeholder="Ex: Lei Paulo Gustavo, Edital 01..."
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Município do RS</label>
+                            <select v-model="filtrosCulturais.municipio"
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white">
+                                <option value="">Todos os 497 municípios do RS</option>
+                                <option v-for="mun in municipiosRS" :key="mun" :value="mun">{{ mun }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Status do Projeto</label>
+                            <select v-model="filtrosCulturais.status"
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white">
+                                <option value="">Todos</option>
+                                <option v-for="st in statusCulturais" :key="st" :value="st">{{ st }}</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button @click="filtrosCulturais = { busca: '', municipio: '', status: '' }"
+                                class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-1.5 px-3 rounded-lg transition">
+                                Limpar Filtros Culturais
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Projetos Culturais -->
+                    <div class="grid grid-cols-1 gap-4">
+                        <div v-if="projetosCulturaisFiltrados.length === 0" class="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-500">
+                            Nenhum projeto cultural encontrado. Clique em <strong>Novo Projeto Cultural</strong> para cadastrar.
+                        </div>
+
+                        <div v-for="proj in projetosCulturaisFiltrados" :key="proj.id"
+                            class="bg-slate-900 border border-slate-800 hover:border-amber-500/40 rounded-xl p-5 space-y-4 transition">
+                            <div class="flex flex-wrap justify-between items-start gap-3">
+                                <div class="space-y-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold border" :class="estiloStatusCultural(proj.status)">
+                                            {{ proj.status }}
+                                        </span>
+                                        <span class="text-xs text-amber-300 font-mono">Edital: {{ proj.edital }}</span>
+                                        <span v-if="proj.municipio_rs" class="text-xs bg-slate-950 border border-slate-700 text-slate-200 px-2 py-0.5 rounded">
+                                            <i class="fa-solid fa-location-dot text-amber-400"></i> {{ proj.municipio_rs }} - RS
+                                        </span>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-white">{{ proj.titulo }}</h3>
+                                    <p class="text-xs text-slate-400">
+                                        Proponente: <strong class="text-slate-200">{{ proj.proponente || 'Não informado' }}</strong>
+                                        <span v-if="proj.link_edital" class="ml-3">
+                                            <a :href="normalizarUrl(proj.link_edital)" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">
+                                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir Edital
+                                            </a>
+                                        </span>
+                                    </p>
+                                </div>
+
+                                <div class="text-right space-y-1">
+                                    <div class="text-xs text-slate-400">Valor Solicitado / Contemplado</div>
+                                    <div class="text-lg font-bold text-amber-400">{{ formatarMoeda(proj.valor_contemplado || proj.valor_solicitado) }}</div>
+                                    <div v-if="isAdmin" class="flex items-center justify-end gap-2 pt-1">
+                                        <button @click="abrirDetalheProjetoCultural(proj)"
+                                            class="px-3 py-1 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 text-xs font-semibold transition">
+                                            <i class="fa-solid fa-folder-open"></i> Gerenciar / Custos / Contas
+                                        </button>
+                                        <button @click="excluirProjetoCultural(proj.id)" title="Excluir Projeto"
+                                            class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 text-xs transition">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    <div v-else class="pt-1">
+                                        <button @click="abrirDetalheProjetoCultural(proj)"
+                                            class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
+                                            <i class="fa-solid fa-eye"></i> Ver Detalhes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Datas principais do projeto -->
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-950 border border-slate-800/90 rounded-lg p-3 text-xs">
+                                <div>
+                                    <span class="text-slate-500 block">Fim das Inscrições</span>
+                                    <span class="font-mono text-amber-300 font-semibold">{{ formatarDataSimples(proj.data_fim_inscricao) }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block">Data de Recurso</span>
+                                    <span class="font-mono text-sky-300 font-semibold">{{ formatarDataSimples(proj.data_recurso) }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block">Prazo de Conclusão / Execução</span>
+                                    <span class="font-mono text-emerald-300 font-semibold">{{ formatarDataSimples(proj.prazo_conclusao) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== ABA ADMIN / USUÁRIOS ==================== -->
                 <section v-if="abaAtiva === 'usuarios' && isAdmin" class="space-y-5">
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
                         <div>
-                            <h2 class="text-lg font-bold text-white">Criar Novo Usuário</h2>
+                            <h2 class="text-lg font-bold text-white">Criar Novo Usuário & Permissões por Módulo</h2>
                             <p class="text-xs text-slate-400">
-                                Todo usuário criado recebe uma senha provisória e é obrigado a definir uma nova senha no primeiro login.
+                                Todo usuário criado recebe uma senha provisória e pode ter acesso a <strong>Licitações</strong>, <strong>Produções Culturais</strong> ou ambos.
                             </p>
                         </div>
 
-                        <form @submit.prevent="criarUsuario" class="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm items-end">
-                            <div>
+                        <form @submit.prevent="criarUsuario" class="grid grid-cols-1 md:grid-cols-6 gap-3 text-sm items-end">
+                            <div class="md:col-span-1">
                                 <label class="block text-xs text-slate-400 mb-1">Nome *</label>
                                 <input v-model="novoUsuario.nome" required placeholder="Ex: Nathália"
                                     class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
                             </div>
-                            <div>
+                            <div class="md:col-span-1">
                                 <label class="block text-xs text-slate-400 mb-1">E-mail *</label>
                                 <input type="email" v-model="novoUsuario.email" required placeholder="nathalia@empresa.com"
                                     class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
                             </div>
-                            <div>
-                                <label class="block text-xs text-slate-400 mb-1">Senha Provisória (mín. 6) *</label>
-                                <input type="text" v-model="novoUsuario.senha_provisoria" required minlength="6" placeholder="Ex: Trocar@123"
+                            <div class="md:col-span-1">
+                                <label class="block text-xs text-slate-400 mb-1">Senha Provisória *</label>
+                                <input type="text" v-model="novoUsuario.senha_provisoria" required minlength="6" placeholder="Trocar@123"
                                     class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
                             </div>
-                            <div class="flex gap-2">
-                                <div class="flex-1">
-                                    <label class="block text-xs text-slate-400 mb-1">Perfil</label>
-                                    <select v-model="novoUsuario.perfil"
-                                        class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
-                                        <option value="viewer">Visualizador</option>
-                                        <option value="admin">Administrador</option>
-                                    </select>
-                                </div>
-                                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
-                                    Criar
+                            <div class="md:col-span-1">
+                                <label class="block text-xs text-slate-400 mb-1">Perfil</label>
+                                <select v-model="novoUsuario.perfil"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                    <option value="viewer">Visualizador</option>
+                                    <option value="admin">Administrador</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-1 space-y-1.5 text-xs bg-slate-950 border border-slate-800 rounded-lg p-2">
+                                <label class="flex items-center gap-2 text-emerald-300 cursor-pointer">
+                                    <input type="checkbox" v-model="novoUsuario.acesso_licitacoes" class="rounded"> Licitações
+                                </label>
+                                <label class="flex items-center gap-2 text-amber-300 cursor-pointer">
+                                    <input type="checkbox" v-model="novoUsuario.acesso_cultural" class="rounded"> Culturais
+                                </label>
+                            </div>
+                            <div class="md:col-span-1">
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition">
+                                    Criar Usuário
                                 </button>
                             </div>
                         </form>
                     </div>
 
                     <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-                        <table class="w-full text-left border-collapse min-w-[700px]">
+                        <table class="w-full text-left border-collapse min-w-[850px]">
                             <thead>
                                 <tr class="border-b border-slate-800 text-xs uppercase text-slate-400 bg-slate-900/70">
                                     <th class="p-3.5">Nome</th>
                                     <th class="p-3.5">E-mail</th>
                                     <th class="p-3.5">Perfil</th>
+                                    <th class="p-3.5">Módulos Permitidos</th>
                                     <th class="p-3.5">Primeiro Acesso</th>
                                     <th class="p-3.5">Status</th>
                                     <th class="p-3.5 text-right">Ações</th>
@@ -468,6 +659,16 @@
                                             class="px-2.5 py-0.5 rounded-full text-xs font-semibold border">
                                             {{ u.perfil === 'admin' ? 'Administrador' : 'Visualizador' }}
                                         </span>
+                                    </td>
+                                    <td class="p-3.5 text-xs space-y-1">
+                                        <label class="flex items-center gap-1.5 text-emerald-300 cursor-pointer">
+                                            <input type="checkbox" :checked="u.acesso_licitacoes !== false" @change="atualizarPermissaoUsuario(u, 'acesso_licitacoes', $event.target.checked)">
+                                            <span>Licitações</span>
+                                        </label>
+                                        <label class="flex items-center gap-1.5 text-amber-300 cursor-pointer">
+                                            <input type="checkbox" :checked="Boolean(u.acesso_cultural)" @change="atualizarPermissaoUsuario(u, 'acesso_cultural', $event.target.checked)">
+                                            <span>Produções Culturais</span>
+                                        </label>
                                     </td>
                                     <td class="p-3.5 text-xs">
                                         <span v-if="u.precisa_trocar_senha" class="text-amber-300 font-medium">Aguarda troca de senha</span>
@@ -494,7 +695,7 @@
 
             </main>
 
-            <!-- Modal Cadastro Cliente -->
+            <!-- ==================== MODAIS LICITAÇÕES ==================== -->
             <div v-if="modalCliente && isAdmin" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
                 <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 space-y-4">
                     <h3 class="text-lg font-bold text-white">Cadastrar Empresa Cliente</h3>
@@ -535,7 +736,6 @@
                 </div>
             </div>
 
-            <!-- Modal Novo Edital -->
             <div v-if="modalLicitacao && isAdmin" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
                 <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 space-y-4 my-8">
                     <h3 class="text-lg font-bold text-white">Cadastrar Nova Licitação / Pregão</h3>
@@ -593,7 +793,6 @@
                 </div>
             </div>
 
-            <!-- Modal Editar / Resultado do Pregão -->
             <div v-if="licitacaoEditando && isAdmin" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
                 <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 space-y-4 my-8">
                     <h3 class="text-lg font-bold text-white">Editar Edital & Resultado do Pregão</h3>
@@ -644,6 +843,307 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ==================== MODAL NOVO PROJETO CULTURAL ==================== -->
+            <div v-if="modalProjetoCultural && isAdmin" class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                <div class="bg-slate-900 border border-amber-500/40 rounded-xl max-w-2xl w-full p-6 space-y-4 my-8">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-masks-theater text-amber-400"></i> Novo Projeto Cultural
+                    </h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-slate-400">Título do Projeto *</label>
+                                <input v-model="novoProjetoCultural.titulo" placeholder="Ex: Mostra de Teatro nas Escolas"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-400">Edital / Chamamento *</label>
+                                <input v-model="novoProjetoCultural.edital" placeholder="Ex: Edital SEDAC / PNAB 04/2026"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-slate-400">Proponente / Produtora</label>
+                                <input v-model="novoProjetoCultural.proponente" placeholder="Nome do proponente ou coletivo"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs text-amber-300 font-medium">Município do RS (497)</label>
+                                <select v-model="novoProjetoCultural.municipio_rs"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 mt-1">
+                                    <option value="">Selecione um município do RS...</option>
+                                    <option v-for="mun in municipiosRS" :key="mun" :value="mun">{{ mun }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            <div>
+                                <label class="text-amber-300 block mb-1">Fim das Inscrições</label>
+                                <input type="date" v-model="novoProjetoCultural.data_fim_inscricao"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                            <div>
+                                <label class="text-sky-300 block mb-1">Data de Recurso</label>
+                                <input type="date" v-model="novoProjetoCultural.data_recurso"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                            <div>
+                                <label class="text-emerald-300 block mb-1">Prazo de Conclusão</label>
+                                <input type="date" v-model="novoProjetoCultural.prazo_conclusao"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            <div>
+                                <label class="text-slate-400 block mb-1">Valor Solicitado (R$)</label>
+                                <input type="number" step="0.01" v-model.number="novoProjetoCultural.valor_solicitado"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5">
+                            </div>
+                            <div>
+                                <label class="text-amber-300 block mb-1">Valor Contemplado (R$)</label>
+                                <input type="number" step="0.01" v-model.number="novoProjetoCultural.valor_contemplado"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Link do Edital</label>
+                                <input type="url" v-model="novoProjetoCultural.link_edital" placeholder="https://..."
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button @click="modalProjetoCultural = false" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
+                        <button @click="salvarProjetoCultural" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+                            Criar Projeto Cultural
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== MODAL DETALHE / CUSTOS / CRONOGRAMA / HABILITAÇÃO / CONTAS ==================== -->
+            <div v-if="projetoDetalhe" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full p-6 space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-start gap-4 border-b border-slate-800 pb-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold border" :class="estiloStatusCultural(projetoDetalhe.status)">
+                                    {{ projetoDetalhe.status }}
+                                </span>
+                                <span class="text-xs text-amber-300 font-mono">{{ projetoDetalhe.edital }}</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mt-1">{{ projetoDetalhe.titulo }}</h3>
+                            <p class="text-xs text-slate-400">{{ projetoDetalhe.municipio_rs ? projetoDetalhe.municipio_rs + ' - RS' : 'Município RS não informado' }} • Proponente: {{ projetoDetalhe.proponente || 'N/I' }}</p>
+                        </div>
+                        <button @click="projetoDetalhe = null" class="text-slate-400 hover:text-white text-lg p-1">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <!-- Dados Gerais & Status -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3 text-xs">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-white text-sm">Dados do Projeto, Datas e Status</h4>
+                            <button v-if="isAdmin" @click="salvarDadosProjetoCultural" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-3 py-1.5 rounded-lg">
+                                Salvar Dados do Projeto
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="text-slate-400 block mb-1">Status</label>
+                                <select :disabled="!isAdmin" v-model="projetoDetalhe.status" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white">
+                                    <option v-for="st in statusCulturais" :key="st" :value="st">{{ st }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Município do RS</label>
+                                <select :disabled="!isAdmin" v-model="projetoDetalhe.municipio_rs" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white">
+                                    <option value="">Selecione...</option>
+                                    <option v-for="mun in municipiosRS" :key="mun" :value="mun">{{ mun }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-amber-300 block mb-1">Valor Contemplado (R$)</label>
+                                <input :disabled="!isAdmin" type="number" step="0.01" v-model.number="projetoDetalhe.valor_contemplado"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="text-amber-300 block mb-1">Fim das Inscrições</label>
+                                <input :disabled="!isAdmin" type="date" v-model="projetoDetalhe.data_fim_inscricao"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                            <div>
+                                <label class="text-sky-300 block mb-1">Data de Recurso</label>
+                                <input :disabled="!isAdmin" type="date" v-model="projetoDetalhe.data_recurso"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                            <div>
+                                <label class="text-emerald-300 block mb-1">Prazo de Conclusão</label>
+                                <input :disabled="!isAdmin" type="date" v-model="projetoDetalhe.prazo_conclusao"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cronograma Completo do Edital -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3 text-xs">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-white text-sm"><i class="fa-regular fa-calendar-days text-amber-400"></i> Cronograma Completo do Edital</h4>
+                            <button v-if="isAdmin" @click="salvarCronogramaCultural" class="bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-semibold px-3 py-1 rounded-lg">
+                                Salvar Cronograma
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div v-for="etapa in etapasCronograma" :key="etapa.key">
+                                <label class="text-slate-400 block mb-1">{{ etapa.label }}</label>
+                                <input :disabled="!isAdmin" type="date" v-model="projetoDetalhe.cronograma[etapa.key]"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" @click="$event.target.showPicker && $event.target.showPicker()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Habilitação & Certidões com Alerta + Upload -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3 text-xs">
+                        <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-shield-halved text-emerald-400"></i> Habilitação, Certidões e Documentos</h4>
+                        <div v-if="isAdmin" class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+                            <input v-model="novaCertidaoCultural.nome" placeholder="Certidão / Documento *" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white">
+                            <input type="date" v-model="novaCertidaoCultural.data_vencimento" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" @click="$event.target.showPicker && $event.target.showPicker()">
+                            <input type="file" @change="onArquivoCertidaoSelecionado" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-300">
+                            <button @click="adicionarCertidaoCultural" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg">
+                                Adicionar
+                            </button>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div v-for="cert in projetoDetalhe.certidoes" :key="cert.id" class="flex flex-wrap justify-between items-center bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 gap-2">
+                                <div>
+                                    <span class="font-semibold text-white">{{ cert.nome }}</span>
+                                    <span class="ml-2 font-semibold" :class="statusValidade(cert.data_vencimento).classe">
+                                        Validade: {{ statusValidade(cert.data_vencimento).texto }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <a v-if="cert.arquivo_url" :href="cert.arquivo_url" target="_blank" class="text-sky-400 hover:underline">
+                                        <i class="fa-solid fa-paperclip"></i> {{ cert.arquivo_nome || 'Arquivo' }}
+                                    </a>
+                                    <button v-if="isAdmin" @click="excluirCertidaoCultural(cert.id)" class="text-rose-400 hover:text-rose-300">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Planilha de Custos -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3 text-xs">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-table text-sky-400"></i> Planilha de Custos</h4>
+                            <span class="text-sm font-bold text-emerald-400">Total da Planilha: {{ formatarMoeda(totalCustosProjeto) }}</span>
+                        </div>
+                        <div v-if="isAdmin" class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
+                            <input v-model="novoCustoCultural.item" placeholder="Item / Despesa *" class="sm:col-span-2 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white">
+                            <input type="number" step="0.01" v-model.number="novoCustoCultural.quantidade" placeholder="Qtd" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white">
+                            <input type="number" step="0.01" v-model.number="novoCustoCultural.valor_unitario" placeholder="Valor Unit. (R$)" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white">
+                            <button @click="adicionarCustoCultural" class="bg-sky-600 hover:bg-sky-500 text-white font-semibold px-3 py-1.5 rounded-lg">
+                                + Item
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-800 text-slate-400">
+                                        <th class="py-1.5">Item</th>
+                                        <th class="py-1.5">Qtd</th>
+                                        <th class="py-1.5">Valor Unit.</th>
+                                        <th class="py-1.5">Subtotal</th>
+                                        <th v-if="isAdmin" class="py-1.5 text-right">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/70">
+                                    <tr v-for="item in projetoDetalhe.custos" :key="item.id">
+                                        <td class="py-1.5 text-white">{{ item.item }}</td>
+                                        <td class="py-1.5 font-mono">{{ item.quantidade }}</td>
+                                        <td class="py-1.5 font-mono">{{ formatarMoeda(item.valor_unitario) }}</td>
+                                        <td class="py-1.5 font-mono text-emerald-400">{{ formatarMoeda((item.quantidade || 0) * (item.valor_unitario || 0)) }}</td>
+                                        <td v-if="isAdmin" class="py-1.5 text-right">
+                                            <button @click="excluirCustoCultural(item.id)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Prestação de Contas (Ativada a partir de Contemplado) -->
+                    <div class="rounded-xl p-4 space-y-3 text-xs border"
+                        :class="isContempladoOuPosterior(projetoDetalhe.status) ? 'bg-emerald-950/20 border-emerald-500/40' : 'bg-slate-950/60 border-slate-800 opacity-75'">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-white text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i> Prestação de Contas
+                            </h4>
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                                :class="isContempladoOuPosterior(projetoDetalhe.status) ? 'bg-emerald-600/30 text-emerald-300' : 'bg-slate-800 text-slate-400'">
+                                {{ isContempladoOuPosterior(projetoDetalhe.status) ? 'Ativada (Projeto Contemplado)' : 'Bloqueada até status Contemplado ou posterior' }}
+                            </span>
+                        </div>
+
+                        <template v-if="isContempladoOuPosterior(projetoDetalhe.status)">
+                            <div v-if="isAdmin" class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end bg-slate-900/90 p-3 rounded-lg border border-slate-800">
+                                <div>
+                                    <label class="text-slate-400 block mb-1">Categoria *</label>
+                                    <select v-model="novoDocumentoCultural.categoria" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white">
+                                        <option value="Nota Fiscal">Nota Fiscal</option>
+                                        <option value="Comprovante de Transferência">Comprovante de Transferência</option>
+                                        <option value="Relatório Fotográfico">Relatório Fotográfico</option>
+                                        <option value="Lista de Presença">Lista de Presença</option>
+                                        <option value="Print de Divulgação">Print de Divulgação</option>
+                                        <option value="Matéria / Link">Matéria / Link</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 block mb-1">Descrição / Título *</label>
+                                    <input v-model="novoDocumentoCultural.descricao" placeholder="Ex: NF 102 - Som e Luz" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 block mb-1">Link de Matéria / URL</label>
+                                    <input type="url" v-model="novoDocumentoCultural.url_externa" placeholder="https://..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white">
+                                </div>
+                                <div class="space-y-1">
+                                    <input type="file" @change="onArquivoPrestacaoSelecionado" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-slate-300">
+                                    <button @click="adicionarDocumentoCultural" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-1.5 rounded-lg">
+                                        Salvar Comprovante
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <div v-for="doc in projetoDetalhe.documentos" :key="doc.id" class="flex flex-wrap justify-between items-center bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 gap-2">
+                                    <div>
+                                        <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-semibold mr-2">{{ doc.categoria }}</span>
+                                        <span class="text-white font-medium">{{ doc.descricao }}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <a v-if="doc.arquivo_url" :href="doc.arquivo_url" target="_blank" class="text-sky-400 hover:underline">
+                                            <i class="fa-solid fa-file-arrow-down"></i> {{ doc.arquivo_nome || 'Baixar Arquivo' }}
+                                        </a>
+                                        <a v-if="doc.url_externa" :href="normalizarUrl(doc.url_externa)" target="_blank" rel="noopener noreferrer" class="text-amber-300 hover:underline">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir Link
+                                        </a>
+                                        <button v-if="isAdmin" @click="excluirDocumentoCultural(doc.id)" class="text-rose-400 hover:text-rose-300">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
         </template>
 
     </div>
@@ -652,6 +1152,10 @@
         const { createApp } = Vue;
         const LOGO_STORAGE_KEY = 'barbosa_licitacoes_logo_v1';
         const FALLBACK_SVG = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" viewBox="0 0 240 80"><rect width="240" height="80" rx="12" fill="#ffffff"/><text x="120" y="36" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="#064e3b">BARBOSA</text><text x="120" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#059669">LICITAÇÕES</text></svg>');
+
+        const MUNICIPIOS_RS = [
+            "Aceguá","Água Santa","Agudo","Ajuricaba","Alecrim","Alegrete","Alegria","Almirante Tamandaré do Sul","Alpestre","Alto Alegre","Alto Feliz","Alvorada","Amaral Ferrador","Ametista do Sul","André da Rocha","Anta Gorda","Antônio Prado","Arambaré","Araricá","Aratiba","Arroio do Meio","Arroio do Padre","Arroio do Sal","Arroio do Tigre","Arroio dos Ratos","Arroio Grande","Arvorezinha","Augusto Pestana","Áurea","Bagé","Balneário Pinhal","Barão","Barão de Cotegipe","Barão do Triunfo","Barra do Guarita","Barra do Quaraí","Barra do Ribeiro","Barra do Rio Azul","Barra Funda","Barracão","Barros Cassal","Benjamin Constant do Sul","Bento Gonçalves","Boa Vista das Missões","Boa Vista do Buricá","Boa Vista do Cadeado","Boa Vista do Incra","Boa Vista do Sul","Bom Jesus","Bom Princípio","Bom Progresso","Bom Retiro do Sul","Boqueirão do Leão","Bossoroca","Bozano","Braga","Brochier","Butiá","Caçapava do Sul","Cacequi","Cachoeira do Sul","Cachoeirinha","Cacique Doble","Caibaté","Caiçara","Camaquã","Camargo","Cambará do Sul","Campestre da Serra","Campina das Missões","Campinas do Sul","Campo Bom","Campo Novo","Campos Borges","Candelária","Cândido Godói","Candiota","Canela","Canguçu","Canoas","Canudos do Vale","Capão Bonito do Sul","Capão da Canoa","Capão do Cipó","Capão do Leão","Capela de Santana","Capitão","Carazinho","Carlos Barbosa","Carlos Gomes","Casca","Caseiros","Catuípe","Caxias do Sul","Centenário","Cerrito","Cerro Branco","Cerro Grande","Cerro Grande do Sul","Cerro Largo","Chapada","Charqueadas","Charrua","Chiapetta","Chuí","Chuvisca","Cidreira","Ciríaco","Colinas","Colorado","Condor","Constantina","Coqueiro Baixo","Coqueiros do Sul","Coronel Barros","Coronel Bicaco","Coronel Pilar","Cotiporã","Coxilha","Crissiumal","Cristal","Cristal do Sul","Cruz Alta","Cruzeiro do Sul","David Canabarro","Derrubadas","Dezesseis de Novembro","Dilermando de Aguiar","Dois Irmãos","Dois Irmãos das Missões","Dois Lajeados","Dom Feliciano","Dom Pedrito","Dom Pedro de Alcântara","Dona Francisca","Doutor Maurício Cardoso","Doutor Ricardo","Eldorado do Sul","Encantado","Encruzilhada do Sul","Engenho Velho","Entre Rios do Sul","Entre-Ijuís","Erebango","Erechim","Ernestina","Erval Grande","Erval Seco","Esmeralda","Esperança do Sul","Espumoso","Estação","Estância Velha","Esteio","Estrela","Estrela Velha","Eugênio de Castro","Fagundes Varela","Farroupilha","Faxinal do Soturno","Faxinalzinho","Fazenda Vilanova","Feliz","Flores da Cunha","Floriano Peixoto","Fontoura Xavier","Formigueiro","Forquetinha","Fortaleza dos Valos","Frederico Westphalen","Garibaldi","Garruchos","Gaurama","General Câmara","Gentil","Getúlio Vargas","Giruá","Glorinha","Gramado","Gramado dos Loureiros","Gramado Xavier","Guabiju","Guaíba","Guaporé","Guarani das Missões","Harmonia","Herval","Herveiras","Horizontina","Hulha Negra","Humaitá","Ibarama","Ibiaçá","Ibiraiaras","Ibirapuitã","Ibirubá","Igrejinha","Ijuí","Ilópolis","Imbé","Imigrante","Independência","Inhacorá","Ipê","Ipiranga do Sul","Iraí","Itaara","Itacurubi","Itapuca","Itaqui","Itati","Itatiba do Sul","Ivorá","Ivoti","Jaboticaba","Jacuizinho","Jacutinga","Jaguarão","Jaguari","Jaquirana","Jari","Jóia","Júlio de Castilhos","Lagoa Bonita do Sul","Lagoa dos Três Cantos","Lagoa Vermelha","Lagoão","Lajeado","Lajeado do Bugre","Lavras do Sul","Liberato Salzano","Lindolfo Collor","Linha Nova","Maçambará","Machadinho","Mampituba","Manoel Viana","Maquiné","Maratá","Marau","Marcelino Ramos","Mariana Pimentel","Mariano Moro","Marques de Souza","Mata","Mato Castelhano","Mato Leitão","Mato Queimado","Maximiliano de Almeida","Minas do Leão","Miraguaí","Montauri","Monte Alegre dos Campos","Monte Belo do Sul","Montenegro","Mormaço","Morrinhos do Sul","Morro Redondo","Morro Reuter","Mostardas","Muçum","Muitos Capões","Muliterno","Não-Me-Toque","Nicolau Vergueiro","Nonoai","Nova Alvorada","Nova Araçá","Nova Bassano","Nova Boa Vista","Nova Bréscia","Nova Candelária","Nova Esperança do Sul","Nova Hartz","Nova Pádua","Nova Palma","Nova Petrópolis","Nova Prata","Nova Ramada","Nova Roma do Sul","Nova Santa Rita","Novo Barreiro","Novo Cabrais","Novo Hamburgo","Novo Machado","Novo Tiradentes","Novo Xingu","Osório","Paim Filho","Palmares do Sul","Palmeira das Missões","Palmitinho","Panambi","Pantano Grande","Paraí","Paraíso do Sul","Pareci Novo","Parobé","Passa Sete","Passo do Sobrado","Passo Fundo","Paulo Bento","Paverama","Pedro Osório","Pejuçara","Pelotas","Picada Café","Pinhal","Pinhal da Serra","Pinhal Grande","Pinheirinho do Vale","Pinheiro Machado","Pirapó","Piratini","Planalto","Poço das Antas","Pontão","Ponte Preta","Portão","Porto Alegre","Porto Lucena","Porto Mauá","Porto Vera Cruz","Porto Xavier","Pouso Novo","Presidente Lucena","Progresso","Protásio Alves","Putinga","Quaraí","Quatro Irmãos","Quevedos","Quinze de Novembro","Redentora","Relvado","Restinga Sêca","Rio dos Índios","Rio Grande","Rio Pardo","Riozinho","Roca Sales","Rodeio Bonito","Rolador","Rolante","Ronda Alta","Rondinha","Roque Gonzales","Rosário do Sul","Sagrada Família","Saldanha Marinho","Salto do Jacuí","Salvador das Missões","Salvador do Sul","Sananduva","Santa Bárbara do Sul","Santa Cecília do Sul","Santa Clara do Sul","Santa Cruz do Sul","Santa Margarida do Sul","Santa Maria","Santa Maria do Herval","Santa Rosa","Santa Tereza","Santa Vitória do Palmar","Santana da Boa Vista","Santana do Livramento","Santiago","Santo Ângelo","Santo Antônio da Patrulha","Santo Antônio das Missões","Santo Antônio do Palma","Santo Antônio do Planalto","Santo Augusto","Santo Cristo","Santo Expedito do Sul","São Borja","São Domingos do Sul","São Francisco de Assis","São Francisco de Paula","São Gabriel","São Jerônimo","São João da Urtiga","São João do Polêsine","São Jorge","São José das Missões","São José do Herval","São José do Hortêncio","São José do Norte","São José do Ouro","São José do Sul","São José dos Ausentes","São Leopoldo","São Lourenço do Sul","São Luiz Gonzaga","São Marcos","São Martinho","São Martinho da Serra","São Miguel das Missões","São Nicolau","São Paulo das Missões","São Pedro da Serra","São Pedro das Missões","São Pedro do Butiá","São Pedro do Sul","São Sebastião do Caí","São Sepé","São Valentim","São Valentim do Sul","São Valério do Sul","São Vendelino","São Vicente do Sul","Sapiranga","Sapucaia do Sul","Sarandi","Seberi","Sede Nova","Segredo","Selbach","Senador Salgado Filho","Sentinela do Sul","Serafina Corrêa","Sério","Sertão","Sertão Santana","Sete de Setembro","Severiano de Almeida","Silveira Martins","Sinimbu","Sobradinho","Soledade","Tabaí","Tapejara","Tapera","Tapes","Taquara","Taquaruçu do Sul","Tavernes","Tavares","Tenente Portela","Terra de Areia","Teutônia","Tio Hugo","Tiradentes do Sul","Toropi","Torres","Tramandaí","Travesseiro","Três Arroios","Três Cachoeiras","Três Coroas","Três de Maio","Três Forquilhas","Três Palmeiras","Três Passos","Trindade do Sul","Triunfo","Tucunduva","Tunas","Tupanci do Sul","Tupanciretã","Tupandi","Tuparendi","Turuçu","Ubiretama","União da Serra","Unistalda","Uruguaiana","Vacaria","Vale do Sol","Vale Real","Vale Verde","Vanini","Venâncio Aires","Vera Cruz","Veranópolis","Vespasiano Corrêa","Viadutos","Vicente Dutra","Victor Graeff","Vila Flores","Vila Lângaro","Vila Maria","Vila Nova do Sul","Vista Alegre","Vista Alegre do Prata","Vista Gaúcha","Vitória das Missões","Westfália","Xangri-lá"
+        ];
 
         createApp({
             data() {
@@ -669,12 +1173,50 @@
                         nome: '',
                         email: '',
                         senha_provisoria: '',
-                        perfil: 'viewer'
+                        perfil: 'viewer',
+                        acesso_licitacoes: true,
+                        acesso_cultural: true
                     },
                     logoSrc: '/static/img/logo.jpeg',
+                    moduloPrincipal: 'licitacoes',
                     abaAtiva: 'licitacoes',
                     clientes: [],
                     licitacoes: [],
+                    projetosCulturais: [],
+                    municipiosRS: MUNICIPIOS_RS,
+                    statusCulturais: [
+                        'Em Elaboração',
+                        'Inscrição Enviada',
+                        'Em Seleção / Habilitação',
+                        'Recurso',
+                        'Contemplado',
+                        'Em Execução',
+                        'Prestação de Contas',
+                        'Concluído',
+                        'Não Contemplado / Arquivado'
+                    ],
+                    etapasCronograma: [
+                        { key: 'abertura', label: 'Abertura do Edital' },
+                        { key: 'impugnacao', label: 'Impugnação' },
+                        { key: 'envio_proposta', label: 'Envio de Proposta' },
+                        { key: 'selecao', label: 'Seleção' },
+                        { key: 'recurso', label: 'Recurso' },
+                        { key: 'classificacao', label: 'Classificação' },
+                        { key: 'habilitacao', label: 'Habilitação' },
+                        { key: 'execucao', label: 'Execução' },
+                        { key: 'prestacao_contas', label: 'Prestação de Contas' }
+                    ],
+                    filtrosCulturais: {
+                        busca: '',
+                        municipio: '',
+                        status: ''
+                    },
+                    modalProjetoCultural: false,
+                    novoProjetoCultural: this.estadoInicialProjetoCultural(),
+                    projetoDetalhe: null,
+                    novaCertidaoCultural: { nome: '', data_vencimento: '', arquivo: null },
+                    novoCustoCultural: { item: '', quantidade: 1, valor_unitario: 0 },
+                    novoDocumentoCultural: { categoria: 'Nota Fiscal', descricao: '', url_externa: '', arquivo: null },
                     filtros: {
                         data: '',
                         cliente: '',
@@ -712,6 +1254,14 @@
             computed: {
                 isAdmin() {
                     return this.usuario && this.usuario.perfil === 'admin';
+                },
+                podeAcessarLicitacoes() {
+                    if (!this.usuario) return false;
+                    return this.usuario.acesso_licitacoes !== false;
+                },
+                podeAcessarCultural() {
+                    if (!this.usuario) return false;
+                    return Boolean(this.usuario.acesso_cultural);
                 },
                 temFiltroAtivo() {
                     return Boolean(
@@ -796,6 +1346,62 @@
                     });
                     return count;
                 },
+                projetosCulturaisFiltrados() {
+                    return this.projetosCulturais.filter(p => {
+                        if (this.filtrosCulturais.municipio && p.municipio_rs !== this.filtrosCulturais.municipio) return false;
+                        if (this.filtrosCulturais.status && p.status !== this.filtrosCulturais.status) return false;
+                        if (this.filtrosCulturais.busca && this.filtrosCulturais.busca.trim()) {
+                            const q = this.filtrosCulturais.busca.trim().toLowerCase();
+                            const alvo = `${p.titulo || ''} ${p.edital || ''} ${p.proponente || ''} ${p.municipio_rs || ''}`.toLowerCase();
+                            if (!alvo.includes(q)) return false;
+                        }
+                        return true;
+                    });
+                },
+                projetosCulturaisAtivos() {
+                    return this.projetosCulturais.filter(p => !['Concluído', 'Não Contemplado / Arquivado'].includes(p.status)).length;
+                },
+                totalContempladoCultural() {
+                    return this.projetosCulturais
+                        .filter(p => ['Contemplado', 'Em Execução', 'Prestação de Contas', 'Concluído'].includes(p.status))
+                        .reduce((acc, p) => acc + (parseFloat(p.valor_contemplado) || 0), 0);
+                },
+                alertasPrazosCulturais() {
+                    let count = 0;
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    const limite = new Date(hoje);
+                    limite.setDate(hoje.getDate() + 10);
+                    this.projetosCulturais.forEach(p => {
+                        [p.data_fim_inscricao, p.data_recurso, p.prazo_conclusao].forEach(dt => {
+                            if (dt) {
+                                const d = new Date(dt + 'T23:59:59');
+                                if (d <= limite) count++;
+                            }
+                        });
+                    });
+                    return count;
+                },
+                alertasHabilitacaoCultural() {
+                    let count = 0;
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    const limite = new Date(hoje);
+                    limite.setDate(hoje.getDate() + 10);
+                    this.projetosCulturais.forEach(p => {
+                        (p.certidoes || []).forEach(c => {
+                            if (c.data_vencimento) {
+                                const d = new Date(c.data_vencimento + 'T23:59:59');
+                                if (d <= limite) count++;
+                            }
+                        });
+                    });
+                    return count;
+                },
+                totalCustosProjeto() {
+                    if (!this.projetoDetalhe || !Array.isArray(this.projetoDetalhe.custos)) return 0;
+                    return this.projetoDetalhe.custos.reduce((acc, item) => acc + ((parseFloat(item.quantidade) || 0) * (parseFloat(item.valor_unitario) || 0)), 0);
+                },
                 lanceMinimoCalculado() {
                     const custoTotal = (this.calc.custo || 0) + (this.calc.frete || 0);
                     const percentualTotal = ((this.calc.impostos || 0) + (this.calc.margem || 0)) / 100;
@@ -805,10 +1411,9 @@
             },
             methods: {
                 async apiFetch(url, options = {}) {
-                    const resp = await fetch(url, {
-                        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-                        ...options
-                    });
+                    const isFormData = options.body instanceof FormData;
+                    const headers = isFormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
+                    const resp = await fetch(url, { ...options, headers });
                     const data = await resp.json().catch(() => ({}));
                     if (resp.status === 401) {
                         this.usuario = null;
@@ -823,6 +1428,14 @@
                     }
                     return data;
                 },
+                selecionarModuloPrincipal(modulo) {
+                    this.moduloPrincipal = modulo;
+                    if (modulo === 'licitacoes') {
+                        this.abaAtiva = 'licitacoes';
+                    } else if (modulo === 'cultural') {
+                        this.abaAtiva = 'cultural';
+                    }
+                },
                 async verificarSessao() {
                     this.carregandoSessao = true;
                     try {
@@ -830,6 +1443,13 @@
                         const data = await resp.json();
                         this.usuario = data.authenticated ? data.user : null;
                         if (this.usuario && !this.usuario.precisa_trocar_senha) {
+                            if (this.podeAcessarLicitacoes) {
+                                this.moduloPrincipal = 'licitacoes';
+                                this.abaAtiva = 'licitacoes';
+                            } else if (this.podeAcessarCultural) {
+                                this.moduloPrincipal = 'cultural';
+                                this.abaAtiva = 'cultural';
+                            }
                             await this.carregarDadosSistema();
                         }
                     } catch (_) {
@@ -849,6 +1469,13 @@
                         this.usuario = data.user;
                         this.loginForm.senha = '';
                         if (!this.usuario.precisa_trocar_senha) {
+                            if (this.podeAcessarLicitacoes) {
+                                this.moduloPrincipal = 'licitacoes';
+                                this.abaAtiva = 'licitacoes';
+                            } else if (this.podeAcessarCultural) {
+                                this.moduloPrincipal = 'cultural';
+                                this.abaAtiva = 'cultural';
+                            }
                             await this.carregarDadosSistema();
                         }
                     } catch (err) {
@@ -885,23 +1512,38 @@
                     this.usuario = null;
                     this.clientes = [];
                     this.licitacoes = [];
+                    this.projetosCulturais = [];
                     this.usuarios = [];
+                    this.projetoDetalhe = null;
                     this.abaAtiva = 'licitacoes';
                 },
                 async carregarDadosSistema() {
-                    const [cliData, licData] = await Promise.all([
-                        this.apiFetch('/api/clientes'),
-                        this.apiFetch('/api/licitacoes')
-                    ]);
-                    this.clientes = cliData || [];
-                    this.licitacoes = (licData || []).map(l => ({
-                        link_edital: '',
-                        data_esclarecimento: '',
-                        valor_referencia: 0,
-                        valor_estimado: 0,
-                        valor_arrematado: 0,
-                        ...l
-                    }));
+                    const requests = [];
+                    if (this.podeAcessarLicitacoes) {
+                        requests.push(this.apiFetch('/api/clientes').then(d => { this.clientes = d || []; }));
+                        requests.push(this.apiFetch('/api/licitacoes').then(d => {
+                            this.licitacoes = (d || []).map(l => ({
+                                link_edital: '',
+                                data_esclarecimento: '',
+                                valor_referencia: 0,
+                                valor_estimado: 0,
+                                valor_arrematado: 0,
+                                ...l
+                            }));
+                        }));
+                    }
+                    if (this.podeAcessarCultural) {
+                        requests.push(this.apiFetch('/api/culturais').then(d => {
+                            this.projetosCulturais = (d || []).map(p => ({
+                                cronograma: {},
+                                certidoes: [],
+                                custos: [],
+                                documentos: [],
+                                ...p
+                            }));
+                        }));
+                    }
+                    await Promise.all(requests);
                     if (this.isAdmin) {
                         await this.carregarUsuarios();
                     }
@@ -923,11 +1565,23 @@
                             method: 'POST',
                             body: JSON.stringify(this.novoUsuario)
                         });
-                        this.novoUsuario = { nome: '', email: '', senha_provisoria: '', perfil: 'viewer' };
+                        this.novoUsuario = { nome: '', email: '', senha_provisoria: '', perfil: 'viewer', acesso_licitacoes: true, acesso_cultural: true };
                         await this.carregarUsuarios();
-                        alert('Usuário criado com senha provisória. Ele deverá trocar a senha no primeiro acesso.');
+                        alert('Usuário criado com senha provisória e permissões configuradas.');
                     } catch (err) {
                         alert(err.message);
+                    }
+                },
+                async atualizarPermissaoUsuario(u, campo, valor) {
+                    try {
+                        await this.apiFetch(`/api/usuarios/${u.id}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({ [campo]: valor })
+                        });
+                        u[campo] = valor;
+                    } catch (err) {
+                        alert(err.message);
+                        await this.carregarUsuarios();
                     }
                 },
                 async resetarSenhaUsuario(u) {
@@ -954,6 +1608,231 @@
                     } catch (err) {
                         alert(err.message);
                     }
+                },
+                estadoInicialProjetoCultural() {
+                    return {
+                        titulo: '',
+                        edital: '',
+                        proponente: '',
+                        municipio_rs: '',
+                        data_fim_inscricao: '',
+                        data_recurso: '',
+                        prazo_conclusao: '',
+                        valor_solicitado: 0,
+                        valor_contemplado: 0,
+                        link_edital: ''
+                    };
+                },
+                abrirModalNovoProjetoCultural() {
+                    this.novoProjetoCultural = this.estadoInicialProjetoCultural();
+                    this.modalProjetoCultural = true;
+                },
+                async salvarProjetoCultural() {
+                    if (!this.novoProjetoCultural.titulo || !this.novoProjetoCultural.edital) {
+                        alert('Preencha Título do Projeto e Edital.');
+                        return;
+                    }
+                    try {
+                        await this.apiFetch('/api/culturais', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                id: Date.now(),
+                                ...this.novoProjetoCultural,
+                                status: 'Em Elaboração',
+                                cronograma: {}
+                            })
+                        });
+                        this.modalProjetoCultural = false;
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async abrirDetalheProjetoCultural(proj) {
+                    try {
+                        const det = await this.apiFetch(`/api/culturais/${proj.id}`);
+                        this.projetoDetalhe = {
+                            cronograma: {},
+                            certidoes: [],
+                            custos: [],
+                            documentos: [],
+                            ...det
+                        };
+                    } catch (err) {
+                        this.projetoDetalhe = JSON.parse(JSON.stringify({
+                            cronograma: {},
+                            certidoes: [],
+                            custos: [],
+                            documentos: [],
+                            ...proj
+                        }));
+                    }
+                },
+                async salvarDadosProjetoCultural() {
+                    try {
+                        await this.apiFetch(`/api/culturais/${this.projetoDetalhe.id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                titulo: this.projetoDetalhe.titulo,
+                                edital: this.projetoDetalhe.edital,
+                                proponente: this.projetoDetalhe.proponente,
+                                municipio_rs: this.projetoDetalhe.municipio_rs,
+                                status: this.projetoDetalhe.status,
+                                data_fim_inscricao: this.projetoDetalhe.data_fim_inscricao,
+                                data_recurso: this.projetoDetalhe.data_recurso,
+                                prazo_conclusao: this.projetoDetalhe.prazo_conclusao,
+                                valor_solicitado: parseFloat(this.projetoDetalhe.valor_solicitado) || 0,
+                                valor_contemplado: parseFloat(this.projetoDetalhe.valor_contemplado) || 0,
+                                link_edital: this.projetoDetalhe.link_edital || ''
+                            })
+                        });
+                        await this.carregarDadosSistema();
+                        alert('Dados do projeto cultural salvos.');
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async salvarCronogramaCultural() {
+                    try {
+                        await this.apiFetch(`/api/culturais/${this.projetoDetalhe.id}/cronograma`, {
+                            method: 'PUT',
+                            body: JSON.stringify({ cronograma: this.projetoDetalhe.cronograma || {} })
+                        });
+                        await this.carregarDadosSistema();
+                        alert('Cronograma salvo.');
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                onArquivoCertidaoSelecionado(e) {
+                    this.novaCertidaoCultural.arquivo = e.target.files[0] || null;
+                },
+                async adicionarCertidaoCultural() {
+                    if (!this.novaCertidaoCultural.nome) {
+                        alert('Informe o nome da certidão/documento.');
+                        return;
+                    }
+                    try {
+                        const fd = new FormData();
+                        fd.append('nome', this.novaCertidaoCultural.nome);
+                        fd.append('data_vencimento', this.novaCertidaoCultural.data_vencimento || '');
+                        if (this.novaCertidaoCultural.arquivo) {
+                            fd.append('arquivo', this.novaCertidaoCultural.arquivo);
+                        }
+                        const criada = await this.apiFetch(`/api/culturais/${this.projetoDetalhe.id}/certidoes`, {
+                            method: 'POST',
+                            body: fd
+                        });
+                        this.projetoDetalhe.certidoes.push(criada);
+                        this.novaCertidaoCultural = { nome: '', data_vencimento: '', arquivo: null };
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async excluirCertidaoCultural(certId) {
+                    try {
+                        await this.apiFetch(`/api/culturais/${this.projetoDetalhe.id}/certidoes/${certId}`, { method: 'DELETE' });
+                        this.projetoDetalhe.certidoes = this.projetoDetalhe.certidoes.filter(c => c.id !== certId);
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async adicionarCustoCultural() {
+                    if (!this.novoCustoCultural.item) {
+                        alert('Informe o item da planilha de custos.');
+                        return;
+                    }
+                    try {
+                        const criado = await this.apiFetch(`/api/culturais/${this.projetoDetalhe.id}/custos`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                item: this.novoCustoCultural.item,
+                                quantidade: parseFloat(this.novoCustoCultural.quantidade) || 1,
+                                valor_unitario: parseFloat(this.novoCustoCultural.valor_unitario) || 0
+                            })
+                        });
+                        this.projetoDetalhe.custos.push(criado);
+                        this.novoCustoCultural = { item: '', quantidade: 1, valor_unitario: 0 };
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async excluirCustoCultural(custoId) {
+                    try {
+                        await this.apiFetch(`/api/culturais/${this.projetoDetalhe.id}/custos/${custoId}`, { method: 'DELETE' });
+                        this.projetoDetalhe.custos = this.projetoDetalhe.custos.filter(c => c.id !== custoId);
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                onArquivoPrestacaoSelecionado(e) {
+                    this.novoDocumentoCultural.arquivo = e.target.files[0] || null;
+                },
+                async adicionarDocumentoCultural() {
+                    if (!this.novoDocumentoCultural.descricao) {
+                        alert('Informe a descrição do comprovante.');
+                        return;
+                    }
+                    try {
+                        const fd = new FormData();
+                        fd.append('categoria', this.novoDocumentoCultural.categoria);
+                        fd.append('descricao', this.novoDocumentoCultural.descricao);
+                        fd.append('url_externa', this.novoDocumentoCultural.url_externa || '');
+                        if (this.novoDocumentoCultural.arquivo) {
+                            fd.append('arquivo', this.novoDocumentoCultural.arquivo);
+                        }
+                        const criado = await this.apiFetch(`/api/culturais/${this.projetoDetalhe.id}/documentos`, {
+                            method: 'POST',
+                            body: fd
+                        });
+                        this.projetoDetalhe.documentos.push(criado);
+                        this.novoDocumentoCultural = { categoria: 'Nota Fiscal', descricao: '', url_externa: '', arquivo: null };
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async excluirDocumentoCultural(docId) {
+                    try {
+                        await this.apiFetch(`/api/culturais/${this.projetoDetalhe.id}/documentos/${docId}`, { method: 'DELETE' });
+                        this.projetoDetalhe.documentos = this.projetoDetalhe.documentos.filter(d => d.id !== docId);
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                async excluirProjetoCultural(id) {
+                    if (!confirm('Excluir este projeto cultural?')) return;
+                    try {
+                        await this.apiFetch(`/api/culturais/${id}`, { method: 'DELETE' });
+                        if (this.projetoDetalhe && this.projetoDetalhe.id === id) this.projetoDetalhe = null;
+                        await this.carregarDadosSistema();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+                isContempladoOuPosterior(status) {
+                    return ['Contemplado', 'Em Execução', 'Prestação de Contas', 'Concluído'].includes(status);
+                },
+                estiloStatusCultural(status) {
+                    const mapa = {
+                        'Em Elaboração': 'bg-slate-800 border-slate-600 text-slate-200',
+                        'Inscrição Enviada': 'bg-sky-950 border-sky-500/50 text-sky-300',
+                        'Em Seleção / Habilitação': 'bg-indigo-950 border-indigo-500/50 text-indigo-300',
+                        'Recurso': 'bg-amber-950 border-amber-500/50 text-amber-300',
+                        'Contemplado': 'bg-emerald-950 border-emerald-500/60 text-emerald-300',
+                        'Em Execução': 'bg-amber-950/80 border-amber-400/60 text-amber-200',
+                        'Prestação de Contas': 'bg-purple-950 border-purple-500/50 text-purple-300',
+                        'Concluído': 'bg-emerald-950/90 border-emerald-400/60 text-emerald-200',
+                        'Não Contemplado / Arquivado': 'bg-rose-950 border-rose-500/50 text-rose-300'
+                    };
+                    return mapa[status] || 'bg-slate-800 border-slate-700 text-slate-300';
+                },
+                formatarDataSimples(dt) {
+                    if (!dt) return 'Não definida';
+                    const d = new Date(dt + 'T12:00:00');
+                    if (isNaN(d.getTime())) return dt;
+                    return d.toLocaleDateString('pt-BR');
                 },
                 estadoInicialLicitacao() {
                     return {
